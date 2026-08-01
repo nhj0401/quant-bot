@@ -1,4 +1,4 @@
 discord.py
 yfinance
-google-genai
+google-generativeai
 flask
