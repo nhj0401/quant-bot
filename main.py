@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands, tasks
 import yfinance as yf
-import pandas_ta as ta
 import math
 import asyncio
 import time
