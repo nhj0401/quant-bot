@@ -10,7 +10,9 @@ from google import genai
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 
-# --- 24시간 생존 웹서버 ---
+# ==========================================
+# 🌐 24시간 생존 웹서버 (Render.com + UptimeRobot 용)
+# ==========================================
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -24,7 +26,9 @@ def run_web_server():
 
 threading.Thread(target=run_web_server, daemon=True).start()
 
-# --- 보안 키 불러오기 ---
+# ==========================================
+# 🔒 보안 키 불러오기 (환경 변수)
+# ==========================================
 DISCORD_TOKEN = os.environ.get('DISCORD_TOKEN')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
@@ -33,6 +37,9 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
+# ------------------------------------------
+# 🗄️ 서버 최적화 및 글로벌 메모리
+# ------------------------------------------
 api_semaphore = asyncio.Semaphore(5)
 data_cache, user_portfolios, user_alerts, savings_tracker, knowledge_base = {}, {}, {}, {}, {'verified_facts': []}
 CACHE_TTL = 600  
@@ -43,16 +50,21 @@ morning_channel_id = None
 
 @bot.event
 async def on_ready():
-    print(f'🔥 V11.1 접속 완료: {bot.user.name}')
+    print(f'🔥 V11.2 (최종 완성) 접속 완료: {bot.user.name}')
     if not memory_cleanup_task.is_running(): memory_cleanup_task.start()
     if not background_learning_engine.is_running(): background_learning_engine.start()
     if not sniper_monitor.is_running(): sniper_monitor.start()
     if not morning_report.is_running(): morning_report.start()
 
+# ------------------------------------------
+# ⚡ 초고속 비동기 AI 및 데이터 엔진
+# ------------------------------------------
 def sync_ask_ai(prompt, system_role, fast=False):
     strict_prompt = f"{system_role}\n\n[출력 원칙]\n1. 마크다운 표와 글머리 기호 사용.\n2. 모호한 추측 금지.\n\n{prompt}"
     try:
-        res = client.models.generate_content(model='gemini-1.5-flash' if fast else 'gemini-1.5-pro', contents=strict_prompt)
+        # 💡 [에러 수정 완료] 가장 최신 AI 모델 이름으로 변경됨
+        model_name = 'gemini-1.5-flash-latest' if fast else 'gemini-1.5-pro-latest'
+        res = client.models.generate_content(model=model_name, contents=strict_prompt)
         return res.text if res.text else "🚨 응답 없음"
     except Exception as e: return f"🚨 오류: {e}"
 
@@ -71,6 +83,9 @@ async def fetch_stock_async(ticker, period="5d"):
             return hist
         except: return None
 
+# ------------------------------------------
+# 🤖 백그라운드 자동화 태스크
+# ------------------------------------------
 @tasks.loop(minutes=15.0)
 async def memory_cleanup_task():
     curr = time.time()
@@ -121,10 +136,13 @@ async def morning_report():
             uid = list(user_portfolios.keys())[0]
             port_data = [f"- **{t}**: {((await fetch_stock_async(t, '5d'))['Close'].iloc[-1] / (await fetch_stock_async(t, '5d'))['Close'].iloc[-2] - 1)*100:+.2f}%" for t in user_portfolios[uid] if (await fetch_stock_async(t, '5d')) is not None]
             if port_data: port_str = "\n".join(port_data)
-        ans = await ask_ai_async(f"S&P: {spy_c:+.2f}%, VIX: {vix_v:.1f}\n내서재:\n{port_str}\n날씨 비유로 시장 브리핑 및 대응 전략 짜줘.", "수석 전략가")
+        ans = await ask_ai_async(f"S&P: {spy_c:+.2f}%, VIX: {vix_v:.1f}\n내서재:\n{port_str}\n날씨 비유로 시장 브리핑 및 대응 전략 짜줘.", "수석 전략가", fast=False)
         await ch.send(embed=discord.Embed(title="🌅 굿모닝 마켓 브리핑", description=ans, color=0xFFD700))
     except: await ch.send("🚨 모닝 브리핑 실패")
 
+# ------------------------------------------
+# 🖥️ UI 팝업창 (모달)
+# ------------------------------------------
 class QuantOrderModal(discord.ui.Modal, title='🛒 퀀트 토스 소수점 주문'):
     ticker = discord.ui.TextInput(label='종목', placeholder='NVDA')
     budget = discord.ui.TextInput(label='투입 원화', placeholder='5000')
@@ -180,6 +198,9 @@ class LibraryModal(discord.ui.Modal, title='📚 서재 관리'):
         elif act != "담기" and t in user_portfolios[uid]: user_portfolios[uid].remove(t)
         await interaction.response.send_message(f"✅ {t} 서재 반영 완료!", ephemeral=True)
 
+# ------------------------------------------
+# 🖱️ UI 리모컨
+# ------------------------------------------
 class AdvancedSelect(discord.ui.Select):
     def __init__(self):
         super().__init__(placeholder="🛠️ 15대 퀀트 툴 모음 (선택)", min_values=1, max_values=1, options=[
@@ -203,12 +224,32 @@ class AdvancedSelect(discord.ui.Select):
                 await i.followup.send(embed=discord.Embed(title=f"결과: {self.title}", description=ans, color=0x2b2d31))
         await interaction.response.send_modal(ToolModal())
 
+class MorningBriefingButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="🌅 기상 직후 굿모닝 브리핑", style=discord.ButtonStyle.primary, emoji="🌅", row=1)
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        uid = interaction.user.id
+        spy, vix = await fetch_stock_async("SPY", "5d"), await fetch_stock_async("^VIX", "1d")
+        spy_c = ((spy['Close'].iloc[-1] - spy['Close'].iloc[-2]) / spy['Close'].iloc[-2]) * 100 if spy is not None else 0
+        vix_v = vix['Close'].iloc[-1] if vix is not None else 20
+        port_str = "서재에 등록된 종목이 없습니다."
+        if uid in user_portfolios and user_portfolios[uid]:
+            port_data = []
+            for t in user_portfolios[uid]:
+                hist = await fetch_stock_async(t, "5d")
+                if hist is not None and len(hist) >= 2: port_data.append(f"- **{t}**: {((hist['Close'].iloc[-1] - hist['Close'].iloc[-2]) / hist['Close'].iloc[-2]) * 100:+.2f}%")
+            if port_data: port_str = "\n".join(port_data)
+        ans = await ask_ai_async(f"[S&P 500: {spy_c:+.2f}%, VIX: {vix_v:.1f}]\n[서재]\n{port_str}\n\n1. 밤새 시장 요약 2. 오늘 전망 3. 대응 전략 브리핑해줘.", "수석 전략가", fast=False)
+        await interaction.followup.send(embed=discord.Embed(title=f"🌅 {interaction.user.name}님의 굿모닝 브리핑", description=ans, color=0xFFD700))
+
 class DashboardView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
         self.add_item(discord.ui.Button(label="🛒 주문", style=discord.ButtonStyle.success, custom_id="o"))
         self.add_item(discord.ui.Button(label="🎯 스나이퍼", style=discord.ButtonStyle.danger, custom_id="s"))
         self.add_item(discord.ui.Button(label="👑 리포트", style=discord.ButtonStyle.secondary, custom_id="r"))
+        self.add_item(MorningBriefingButton())
         self.add_item(discord.ui.Button(label="📚 내 서재", style=discord.ButtonStyle.secondary, custom_id="l"))
         self.add_item(discord.ui.Button(label="🔥 일지", style=discord.ButtonStyle.secondary, custom_id="h"))
         self.add_item(AdvancedSelect())
@@ -221,9 +262,12 @@ class DashboardView(discord.ui.View):
         elif cid == "h": await i.response.send_modal(HabitJournalModal())
         return True
 
+# ------------------------------------------
+# 📌 명령어 모음
+# ------------------------------------------
 @bot.command(name="시작")
 async def start_cmd(ctx):
-    await ctx.send(embed=discord.Embed(title="PRO 퀀트 터미널", description="완벽 최적화 버전", color=0x0050FF), view=DashboardView())
+    await ctx.send(embed=discord.Embed(title="PRO 퀀트 터미널 (최종 안정화 버전)", description="**에러 유발 요인 완벽 제거!**\n명령어 하나로 모든 기능을 실행하세요.", color=0x0050FF), view=DashboardView())
 
 @bot.command(name="모닝콜등록")
 async def register_morning(ctx):
