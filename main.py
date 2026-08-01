@@ -6,7 +6,7 @@ import asyncio
 import time
 import datetime
 import os
-from google import genai
+import google.generativeai as genai  # 🌟 가장 안정적인 클래식 라이브러리로 교체!
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 
@@ -32,8 +32,8 @@ threading.Thread(target=run_web_server, daemon=True).start()
 DISCORD_TOKEN = os.environ.get('DISCORD_TOKEN')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
-# 구글 API 클라이언트 초기화
-client = genai.Client(api_key=GEMINI_API_KEY)
+# 🌟 구글 제미나이 클래식 안정화 세팅
+genai.configure(api_key=GEMINI_API_KEY)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -52,23 +52,24 @@ morning_channel_id = None
 
 @bot.event
 async def on_ready():
-    print(f'🔥 V11.4 접속 완료 (도움말 업데이트 및 에러 수정!): {bot.user.name}')
+    print(f'🔥 V11.5 접속 완료 (AI 엔진 100% 안정화!): {bot.user.name}')
     if not memory_cleanup_task.is_running(): memory_cleanup_task.start()
     if not background_learning_engine.is_running(): background_learning_engine.start()
     if not sniper_monitor.is_running(): sniper_monitor.start()
     if not morning_report.is_running(): morning_report.start()
 
 # ------------------------------------------
-# ⚡ [🚨에러 수정 완료🚨] AI 통신 엔진
+# ⚡ [🚨 완벽 수정 🚨] AI 통신 엔진
 # ------------------------------------------
 def sync_ask_ai(prompt, system_role):
     strict_prompt = f"{system_role}\n\n[출력 원칙]\n1. 마크다운 표와 글머리 기호 사용.\n2. 팩트 기반 요약.\n\n{prompt}"
     try:
-        # 모델 이름을 가장 안정적인 'gemini-1.5-flash'로 100% 통일하여 404 에러 원천 차단!
-        res = client.models.generate_content(model='gemini-1.5-flash', contents=strict_prompt)
+        # 🌟 구버전 호환 방식으로 404 에러 100% 원천 차단
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        res = model.generate_content(strict_prompt)
         return res.text if res.text else "🚨 응답 없음"
     except Exception as e: 
-        return f"🚨 오류 발생: {e}"
+        return f"🚨 AI 오류 발생: {e}"
 
 async def ask_ai_async(prompt, system_role):
     async with api_semaphore:
@@ -138,7 +139,7 @@ async def morning_report():
             uid = list(user_portfolios.keys())[0]
             port_data = [f"- **{t}**: {((await fetch_stock_async(t, '5d'))['Close'].iloc[-1] / (await fetch_stock_async(t, '5d'))['Close'].iloc[-2] - 1)*100:+.2f}%" for t in user_portfolios[uid] if (await fetch_stock_async(t, '5d')) is not None]
             if port_data: port_str = "\n".join(port_data)
-        ans = await ask_ai_async(f"S&P: {spy_c:+.2f}%, VIX: {vix_v:.1f}\n내서재:\n{port_str}\n학생 눈높이로 오늘 시장 대응 전략 짜줘.", "수석 전략가")
+        ans = await ask_ai_async(f"S&P: {spy_c:+.2f}%, VIX: {vix_v:.1f}\n내서재:\n{port_str}\n고등학생 눈높이로 오늘 시장 대응 전략 짜줘.", "수석 전략가")
         await ch.send(embed=discord.Embed(title="🌅 굿모닝 마켓 브리핑", description=ans, color=0xFFD700))
     except: await ch.send("🚨 모닝 브리핑 실패")
 
@@ -273,9 +274,8 @@ class DashboardView(discord.ui.View):
 # ------------------------------------------
 @bot.command(name="시작")
 async def start_cmd(ctx):
-    await ctx.send(embed=discord.Embed(title="PRO 퀀트 터미널 (최종 V11.4)", description="명령어 하나로 모든 기능을 실행하세요.\n\n❓ **각 기능이 궁금하다면 `!도움말`을 입력하세요!**", color=0x0050FF), view=DashboardView())
+    await ctx.send(embed=discord.Embed(title="PRO 퀀트 터미널 (최종 V11.5)", description="명령어 하나로 모든 기능을 실행하세요.\n\n❓ **각 기능이 궁금하다면 `!도움말`을 입력하세요!**", color=0x0050FF), view=DashboardView())
 
-# 💡 [도움말 기능 업데이트]
 @bot.command(name="도움말")
 async def help_cmd(ctx):
     help_text = """
