@@ -1,0 +1,5 @@
+discord.py
+yfinance
+pandas_ta
+google-genai
+flask
