@@ -50,7 +50,7 @@ morning_channel_id = None
 
 @bot.event
 async def on_ready():
-    print(f'🔥 V11.2 (최종 완성) 접속 완료: {bot.user.name}')
+    print(f'🔥 V11.3 (도움말 추가 완료) 접속: {bot.user.name}')
     if not memory_cleanup_task.is_running(): memory_cleanup_task.start()
     if not background_learning_engine.is_running(): background_learning_engine.start()
     if not sniper_monitor.is_running(): sniper_monitor.start()
@@ -62,7 +62,6 @@ async def on_ready():
 def sync_ask_ai(prompt, system_role, fast=False):
     strict_prompt = f"{system_role}\n\n[출력 원칙]\n1. 마크다운 표와 글머리 기호 사용.\n2. 모호한 추측 금지.\n\n{prompt}"
     try:
-        # 💡 [에러 수정 완료] 가장 최신 AI 모델 이름으로 변경됨
         model_name = 'gemini-1.5-flash-latest' if fast else 'gemini-1.5-pro-latest'
         res = client.models.generate_content(model=model_name, contents=strict_prompt)
         return res.text if res.text else "🚨 응답 없음"
@@ -207,7 +206,7 @@ class AdvancedSelect(discord.ui.Select):
             discord.SelectOption(label="📖 쉬운 주식/경제 용어 사전", emoji="📖"), discord.SelectOption(label="💸 자투리 돈 스노우볼", emoji="💸"),
             discord.SelectOption(label="🛑 FOMO 방지 & 눌림목", emoji="🛑"), discord.SelectOption(label="🕵️ CEO 내부자 거래", emoji="👀"),
             discord.SelectOption(label="💥 공매도 스퀴즈 탐지기", emoji="💥"), discord.SelectOption(label="🌊 스마트 머니 수급", emoji="🌊"),
-            discord.SelectOption(label="🔍 AI 캔들스틱 스캐너", emoji="🕯️"), discord.SelectOption(label="📉 MDD 백테스트", emoji="📉"),
+            discord.SelectOption(label="🔍 AI 차트 스캐너", emoji="🕯️"), discord.SelectOption(label="📉 MDD 백테스트", emoji="📉"),
             discord.SelectOption(label="🧠 AI 팩트 DB 열람", emoji="🤖")
         ])
     async def callback(self, interaction: discord.Interaction):
@@ -220,7 +219,7 @@ class AdvancedSelect(discord.ui.Select):
             val = discord.ui.TextInput(label='종목/단어/금액 입력', placeholder='입력')
             async def on_submit(self, i: discord.Interaction):
                 await i.response.defer()
-                ans = await ask_ai_async(f"분석 대상: '{self.val.value}'. 선택 툴: '{self.title}'. 전문적으로 팩트 분석해.", "전문가")
+                ans = await ask_ai_async(f"분석 대상: '{self.val.value}'. 선택 툴: '{self.title}'. 고등학생 눈높이로 쉽고 전문적으로 분석해.", "전문가")
                 await i.followup.send(embed=discord.Embed(title=f"결과: {self.title}", description=ans, color=0x2b2d31))
         await interaction.response.send_modal(ToolModal())
 
@@ -267,7 +266,36 @@ class DashboardView(discord.ui.View):
 # ------------------------------------------
 @bot.command(name="시작")
 async def start_cmd(ctx):
-    await ctx.send(embed=discord.Embed(title="PRO 퀀트 터미널 (최종 안정화 버전)", description="**에러 유발 요인 완벽 제거!**\n명령어 하나로 모든 기능을 실행하세요.", color=0x0050FF), view=DashboardView())
+    await ctx.send(embed=discord.Embed(title="PRO 퀀트 터미널 (최종 안정화 버전)", description="명령어 하나로 모든 기능을 실행하세요.\n\n❓ **기능이 궁금하다면 `!도움말`을 입력하세요!**", color=0x0050FF), view=DashboardView())
+
+# 💡 [NEW] 도움말 명령어 추가
+@bot.command(name="도움말")
+async def help_cmd(ctx):
+    help_text = """
+**1. 🛒 [주문] 버튼**
+- 피시방 안 가고 아낀 5천 원으로 '엔비디아' 주식 몇 조각 살 수 있는지, 시장 위험도를 계산해서 똑똑한 매수 플랜을 짜줍니다.
+
+**2. 🎯 [스나이퍼] 버튼**
+- 원하는 주식이 내가 정한 가격에 도달하면, 학교에서 수업을 듣고 있거나 자고 있어도 디스코드 알람을 빵빵 울려줍니다!
+
+**3. 👑 [리포트] 버튼**
+- 종목 코드를 치면 AI가 차트와 뉴스를 싹 분석해서 "이 주식 지금 물리면 답도 없다" 혹은 "지금이 바닥이다"라고 팩트 폭격을 날려줍니다.
+
+**4. 🌅 [굿모닝 브리핑] 버튼**
+- 아침에 눈 뜨자마자 누르면, 밤새 미국 증시가 어땠는지 날씨에 비유해서 설명해 줍니다. '내 서재'에 담아둔 주식 성적표도 같이 줍니다.
+
+**5. 📚 [내 서재] 버튼 / `!내서재` 명령어**
+- 내가 평소 관심 있거나 모으는 주식을 등록(담기/빼기)해 두는 개인 즐겨찾기 폴더입니다.
+
+**6. 🔥 [일지] 버튼**
+- 오늘 아낀 돈(예: 3000원)과 오늘 매매 내역을 적으면, 칭찬으로 도파민을 채워주거나 뇌동매매를 혼내줍니다.
+
+**7. 🛠️ [하단 드롭다운 메뉴]**
+- 어려운 경제 용어를 게임에 비유해서 설명해 주는 '용어 사전'부터, 세력이 장난치는지 확인하는 기능까지 9가지 고급 툴이 숨어있습니다.
+"""
+    embed = discord.Embed(title="📖 퀀트 봇 완벽 사용 설명서", description=help_text, color=0x00D959)
+    embed.set_footer(text="버튼을 누르려면 채팅창에 '!시작'을 입력하세요!")
+    await ctx.send(embed=embed)
 
 @bot.command(name="모닝콜등록")
 async def register_morning(ctx):
