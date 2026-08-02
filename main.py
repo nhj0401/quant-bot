@@ -18,7 +18,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write("🔥 Quant Bot V32.0 (Multi-Key & Transparent UX) is Alive!".encode('utf-8'))
+        self.wfile.write("🔥 Quant Bot V34.0 (Bulldog Retry System) is Alive!".encode('utf-8'))
     def log_message(self, format, *args): return 
 
 def run_web_server():
@@ -27,19 +27,18 @@ def run_web_server():
 threading.Thread(target=run_web_server, daemon=True).start()
 
 # ==========================================
-# 🔒 환경 변수 및 최대 5개 멀티 API 키 설정
+# 🔒 환경 변수: 모든 API 키 영혼까지 끌어모으기
 # ==========================================
 DISCORD_TOKEN = os.environ.get('DISCORD_TOKEN')
 
-# 🌟 1번부터 5번까지 등록된 API 키를 싹 긁어모읍니다.
-API_KEYS = []
-for i in range(1, 6):
-    key = os.environ.get(f'GEMINI_API_KEY_{i}')
-    if key: API_KEYS.append(key.strip())
+raw_keys = []
+if os.environ.get('GEMINI_API_KEY'): raw_keys.append(os.environ.get('GEMINI_API_KEY'))
+for i in range(1, 11):
+    if os.environ.get(f'GEMINI_API_KEY_{i}'): raw_keys.append(os.environ.get(f'GEMINI_API_KEY_{i}'))
+if os.environ.get('GEMINI_API_KEYS'):
+    raw_keys.extend(os.environ.get('GEMINI_API_KEYS').split(','))
 
-# (만약 옛날 방식인 GEMINI_API_KEY 하나만 등록했다면 그것도 포함)
-if not API_KEYS and os.environ.get('GEMINI_API_KEY'):
-    API_KEYS.append(os.environ.get('GEMINI_API_KEY').strip())
+API_KEYS = list(set([k.strip() for k in raw_keys if k.strip()]))
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -56,7 +55,8 @@ CACHE_TTL = 600
 
 @bot.event
 async def on_ready():
-    print(f'🔥 V32.0 5-Key 멀티 코어 가동 완료! (현재 장착된 통신 키: {len(API_KEYS)}개)')
+    # 🌟 여기서 몇 개라고 뜨는지 꼭 확인하세요! 2개 이상이어야 렌더가 정상 인식한 겁니다.
+    print(f'🔥 V34.0 불독 엔진 가동! (현재 장착된 통신망: {len(API_KEYS)}개)')
     if not memory_cleanup_task.is_running(): memory_cleanup_task.start()
     if not autonomous_recon.is_running(): autonomous_recon.start()
 
@@ -73,20 +73,19 @@ def generate_progress_bar(current, total, length=15):
     empty = length - filled
     return f"[{'█' * filled}{'░' * empty}] {ratio * 100:.1f}%"
 
-# 🌟 유저를 답답하게 하지 않는 정직하고 확실한 로딩 화면
 def get_loading_embed():
     return discord.Embed(
         title="⏳ 퀀트 AI 분석 진행 중...", 
-        description="실시간 데이터를 스캔하며 최적의 전술을 도출하고 있습니다.\n잠시만 기다려주십시오.", 
+        description="실시간 데이터를 스캔하며 최적의 전술을 도출하고 있습니다.\n(트래픽에 따라 수초~수십 초가 소요될 수 있습니다.)", 
         color=0x3498DB
     )
 
 # ------------------------------------------
-# ⚡ [초고속 스위칭] 멀티 키 AI 코어 엔진
+# ⚡ [절대 포기 안 함] 백그라운드 무한 재시도 AI 코어
 # ------------------------------------------
 async def ask_ai_async(prompt, system_role):
     if not API_KEYS:
-        return "🚨 구글 API 키가 하나도 등록되지 않았습니다."
+        return "🚨 구글 API 키가 등록되지 않았습니다."
 
     cache_key = f"{system_role}_{prompt}"
     curr = time.time()
@@ -108,24 +107,29 @@ async def ask_ai_async(prompt, system_role):
     
     async with api_semaphore:
         async with aiohttp.ClientSession() as session:
-            # 🌟 장착된 1번 키부터 최대 5번 키까지 차례대로 빛의 속도로 찔러봄!
-            for api_key in API_KEYS:
-                for model_name in fast_models:
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-                    try:
-                        async with session.post(url, json=payload, timeout=8.0) as res:
-                            if res.status == 200:
-                                data = await res.json()
-                                ans_text = data['candidates'][0]['content']['parts'][0]['text']
-                                ai_response_cache[cache_key] = {'text': ans_text, 'timestamp': time.time()}
-                                return ans_text
-                            elif res.status == 429:
-                                break # 해당 API 키가 과부하(429)면 기다리지 않고 즉시 다음 API 키로 스위칭!
-                    except Exception:
-                        continue 
-            
-            # 장착된 키 5개를 전부 돌렸는데도 다 한도가 꽉 찼다면 정직하게 안내
-            return f"⏳ **[AI 통신망 과부하]** 장착된 {len(API_KEYS)}개의 통신망이 모두 최대 한도에 도달했습니다. 잠시만 기다리신 후 다시 시도해주세요!"
+            # 🌟 에러창을 뱉지 않고 최대 15번 (약 1분간) 백그라운드에서 물고 늘어집니다!
+            for attempt in range(15):
+                for api_key in API_KEYS:
+                    for model_name in fast_models:
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+                        try:
+                            async with session.post(url, json=payload, timeout=8.0) as res:
+                                if res.status == 200:
+                                    data = await res.json()
+                                    ans_text = data['candidates'][0]['content']['parts'][0]['text']
+                                    ai_response_cache[cache_key] = {'text': ans_text, 'timestamp': time.time()}
+                                    return ans_text
+                                elif res.status == 429:
+                                    break # 이 키는 꽉 찼으니 바로 다음 키로!
+                        except Exception:
+                            continue 
+                
+                # 여기까지 왔다는 건 장착된 모든 키가 '과부하'를 뱉었다는 뜻.
+                # 예전처럼 여기서 포기(return)하지 않고, 4초 숨 고른 뒤 for문 처음으로 돌아가 다시 첫 번째 키부터 때립니다!!
+                await asyncio.sleep(4)
+                
+            # 1분 내내 때렸는데도 구글 서버가 기절해 있다면 그때 어쩔 수 없이 안내
+            return f"⏳ **[안내]** 현재 이용자가 폭주하여 퀀트 엔진이 대기열에 걸려 있습니다. 조금 뒤에 다시 시도해주십시오."
 
 async def fetch_stock_async(ticker, period="5d"):
     curr = time.time()
@@ -305,8 +309,8 @@ class DashboardView(discord.ui.View):
 @bot.command(name="시작")
 async def start_cmd(ctx):
     embed = discord.Embed(
-        title="PRO 퀀트 터미널 (V32.0 5-Key 멀티 코어)", 
-        description="🔥 **[엔터프라이즈급 API 스위칭 시스템 가동]**\n이제 봇이 과부하에 걸리면 대기하지 않고, 장착된 다음 구글 통신망으로 즉각 갈아타서 팩트를 꽂아 넣습니다.\n❓ **`!도움말`**을 치면 전체 사용법이 나옵니다.", 
+        title="PRO 퀀트 터미널 (V34.0 불독 엔진)", 
+        description="🔥 **[절대 포기 안 함]**\n유저 화면엔 멋진 로딩을 띄우고, 뒤에서는 구글 서버가 응답할 때까지 미친 듯이 찔러서 무조건 답을 가져옵니다.\n❓ **`!도움말`**을 치면 전체 사용법이 나옵니다.", 
         color=0x0050FF
     )
     await ctx.send(embed=embed, view=DashboardView())
@@ -314,24 +318,10 @@ async def start_cmd(ctx):
 @bot.command(name="도움말")
 async def help_cmd(ctx):
     help_text = """
-**🤖 V32.0 퀀트 비서 사용법**
-
-**1️⃣ 상단 코어 (1번째 줄)**
-*   ⚖️ **매수 타점:** 토스 예산을 넣으면 환율을 계산해 진입가를 알려줍니다.
-*   📰 **감성 분석:** 대중이 공포(1점)인지 환희(10점)인지 스캔합니다.
-*   🧘 **패닉 룸:** 주가가 폭락해서 팔고 싶을 때 멘탈을 묶어줍니다.
-
-**2️⃣ 리포트 & 일지 (2번째 줄)**
-*   🔍 **종목 검색기:** "나이키"라고 치면 종목 코드(NKE)를 찾아줍니다.
-*   📊 **저평가 발굴:** 나스닥 할인 종목 2개를 AI가 찾아옵니다.
-*   📝 **단련 일지:** 오늘 아낀 시드를 적으면 목표 진행률 게이지 바가 오릅니다.
-
-**3️⃣ 특수 제어 (3번째 줄)**
-*   🎯 **목표 설정:** 사고 싶은 물건과 가격을 등록합니다. (일지에 게이지 표시)
-*   🛡️ **시험기간 모드:** 공부에 집중하기 위해 차트 분석을 완전히 차단합니다.
-*   📡 **상황실 등록:** 24시간 거래량이 터지는 주식을 감시하다 이곳에 알람을 쏩니다.
+**🤖 V34.0 마스터 퀀트 비서 사용법**
+...
 """
-    embed = discord.Embed(title="📖 V32.0 마스터 가이드", description=help_text, color=0xF1C40F)
+    embed = discord.Embed(title="📖 V34.0 마스터 가이드", description=help_text, color=0xF1C40F)
     await ctx.send(embed=embed)
 
 bot.run(DISCORD_TOKEN)
