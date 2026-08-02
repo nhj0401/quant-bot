@@ -18,7 +18,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write("🔥 Quant Bot V24.0 (Grand Master) is Alive!".encode('utf-8'))
+        self.wfile.write("🔥 Quant Bot V26.0 (Error-Proof & Search) is Alive!".encode('utf-8'))
     def log_message(self, format, *args): return 
 
 def run_web_server():
@@ -41,15 +41,13 @@ bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 # ------------------------------------------
 api_semaphore = asyncio.Semaphore(5)
 data_cache, ai_response_cache = {}, {}  
-user_savings = {}
-user_goals = {}   # 목표 {uid: {'item': '물건', 'price': 50000}}
-exam_mode = {}    # 시험기간 차단 모드
+user_savings, user_goals, exam_mode = {}, {}, {}
 alert_channel_id = None
 CACHE_TTL = 600  
 
 @bot.event
 async def on_ready():
-    print(f'🔥 V24.0 그랜드 마스터(기능 대통합) 접속 완료: {bot.user.name}')
+    print(f'🔥 V26.0 에러 무적 방어 & 종목 검색기 탑재 완료: {bot.user.name}')
     if not memory_cleanup_task.is_running(): memory_cleanup_task.start()
     if not autonomous_recon.is_running(): autonomous_recon.start()
 
@@ -60,14 +58,14 @@ async def memory_cleanup_task():
     for k in [k for k, v in ai_response_cache.items() if (curr - v['timestamp']) > CACHE_TTL]: del ai_response_cache[k]
 
 def generate_progress_bar(current, total, length=15):
-    if total <= 0: return "[오류: 목표 금액이 0원]"
+    if total <= 0: return "[오류: 목표 금액 0원]"
     ratio = min(current / total, 1.0)
     filled = int(ratio * length)
     empty = length - filled
     return f"[{'█' * filled}{'░' * empty}] {ratio * 100:.1f}%"
 
 # ------------------------------------------
-# ⚡ [초고속 직통망] AI 코어 엔진
+# ⚡ [무적 회피망] AI 코어 엔진 (404 완벽 방어)
 # ------------------------------------------
 async def ask_ai_async(prompt, system_role):
     cache_key = f"{system_role}_{prompt}"
@@ -75,33 +73,40 @@ async def ask_ai_async(prompt, system_role):
     if cache_key in ai_response_cache and (curr - ai_response_cache[cache_key]['timestamp']) < CACHE_TTL:
         return ai_response_cache[cache_key]['text']
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
     master_system_role = f"""너는 고등학교 1학년 트레이더를 위한 'AI 퀀트 및 멘탈 케어 비서'야. 
 자본금 1~5만 원 단위의 소수점 투자(DCA)를 가장 효율적으로 리딩하며, 단타와 멘탈 방어 전술에 모두 능해.
-트레이더님은 특수부대와 경찰을 꿈꾸며 체력(턱걸이, 푸시업, 유도 1단)을 단련하듯 시드머니를 단련 중이야.
-원칙이 흔들릴 땐 턱걸이 한 개를 더 당기는 고통과 인내심에 비유해서 강력하게 팩트폭격과 멘탈 케어를 해줘.
-
+트레이더님은 경찰/특수부대를 꿈꾸며 체력(턱걸이, 푸시업, 유도)을 단련하듯 시드머니를 굴리고 있어.
 [역할 지정]: {system_role}
-[출력 원칙]: 마크다운 표 적극 활용, 수치화, 구체적인 소수점/단타 금액 지시."""
+[출력 원칙]: 마크다운 표 적극 활용, 수치화, 핵심만 간결하게 지시."""
 
     payload = {
         "contents": [{"parts": [{"text": f"{master_system_role}\n\n{prompt}"}]}],
         "generationConfig": {"temperature": 0.7}
     }
     
+    # 🌟 404 에러 방지 시스템: 최신 모델부터 옛날 모델까지 차례대로 찔러봅니다.
+    fallback_models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+    
     async with api_semaphore:
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, timeout=20.0) as res:
-                    if res.status == 200:
-                        data = await res.json()
-                        ans_text = data['candidates'][0]['content']['parts'][0]['text']
-                        ai_response_cache[cache_key] = {'text': ans_text, 'timestamp': curr}
-                        return ans_text
-                    else:
-                        return f"🚨 API 에러 ({res.status})"
-        except Exception as e:
-            return f"🚨 통신 실패: {e}"
+        async with aiohttp.ClientSession() as session:
+            for model_name in fallback_models:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+                try:
+                    async with session.post(url, json=payload, timeout=15.0) as res:
+                        if res.status == 200:
+                            data = await res.json()
+                            ans_text = data['candidates'][0]['content']['parts'][0]['text']
+                            ai_response_cache[cache_key] = {'text': ans_text, 'timestamp': curr}
+                            return ans_text
+                        elif res.status == 404:
+                            continue # 해당 모델 이름이 구글 서버에 없으면 다음 모델로 즉시 넘어감!
+                        else:
+                            error_text = await res.text()
+                            return f"🚨 통신 오류 ({res.status}): 구글 서버 문제 발생"
+                except Exception:
+                    continue # 타임아웃 등 에러 발생 시 다음 모델 시도
+            
+            return "🚨 모든 통신망 실패: 구글 서버가 응답하지 않습니다."
 
 async def fetch_stock_async(ticker, period="5d"):
     curr = time.time()
@@ -114,7 +119,7 @@ async def fetch_stock_async(ticker, period="5d"):
         except: return None
 
 # ------------------------------------------
-# 🛰️ 24시간 자율 정찰 (상황실 알림)
+# 🛰️ 24시간 자율 정찰
 # ------------------------------------------
 @tasks.loop(minutes=30.0)
 async def autonomous_recon():
@@ -130,123 +135,133 @@ async def autonomous_recon():
             vol_today, vol_yest = hist['Volume'].iloc[-1], hist['Volume'].iloc[-2]
             if vol_yest > 0 and (vol_today / vol_yest) >= 1.8: 
                 prc_change = ((hist['Close'].iloc[-1] - hist['Close'].iloc[-2]) / hist['Close'].iloc[-2]) * 100
-                detected.append(f"[{t}] 거래량 1.8배 이상 폭발 (변동: {prc_change:+.2f}%)")
+                detected.append(f"[{t}] 거래량 폭발 (변동: {prc_change:+.2f}%)")
         except: continue
 
     if detected:
-        prompt = f"무인 정찰 포착 내용:\n{chr(10).join(detected)}\n이 현상이 투매인지 환희인지 감성 점수(1~10)로 평가하고 소수점/단타 타점인지 브리핑해라."
-        ans = await ask_ai_async(prompt, "무인 정찰 레이더")
-        await ch.send(embed=discord.Embed(title="🚨 [긴급] 자율 정찰 상황 갱신", description=ans, color=0xE74C3C))
+        prompt = f"포착 내용:\n{chr(10).join(detected)}\n이 현상이 투매인지 환희인지 1~10점으로 평가하고 브리핑해라."
+        ans = await ask_ai_async(prompt, "정찰 레이더")
+        await ch.send(embed=discord.Embed(title="🚨 [긴급] 수급 이상 징후 포착", description=ans, color=0xE74C3C))
 
 # ------------------------------------------
-# 🖥️ 상단 UI: 설계도 코어 + 일지
+# 🖥️ 상단 UI: 추가된 종목 검색기 및 기존 모달
 # ------------------------------------------
-class SentimentModal(discord.ui.Modal, title='📰 뉴스 감성 분석 (Sentiment AI)'):
-    ticker = discord.ui.TextInput(label='관심 주식 코드 (예: TSLA)', placeholder='티커 입력')
+class TickerSearchModal(discord.ui.Modal, title='🔍 종목 코드(티커) 검색기'):
+    company_name = discord.ui.TextInput(label='회사 이름 (예: 애플, 팔란티어, 코카콜라)', placeholder='이름을 입력하세요')
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        t = self.ticker.value.upper()
-        hist = await fetch_stock_async(t, "5d")
-        prc_change = ((hist['Close'].iloc[-1] - hist['Close'].iloc[0]) / hist['Close'].iloc[0]) * 100 if hist is not None else 0
-        prompt = f"종목: {t}, 5일 변동: {prc_change:+.2f}%. 최근 시장 분위기를 종합해 '군중 심리(감성 점수)'를 1~10점(1:극도 공포, 10:극도 환희)으로 평가해."
-        ans = await ask_ai_async(prompt, "뉴스 감성 분석 AI")
-        await interaction.followup.send(embed=discord.Embed(title=f"📰 {t} 심리 스캐너", description=ans, color=0x3498DB))
+        name = self.company_name.value
+        prompt = f"회사명 '{name}'의 미국 주식 공식 종목 코드(티커, Ticker)를 찾아줘. 그리고 이 회사가 돈을 어떻게 버는지 고등학생 눈높이로 딱 1줄로만 재밌게 요약해 줘."
+        ans = await ask_ai_async(prompt, "종목 검색 봇")
+        await interaction.followup.send(embed=discord.Embed(title=f"🔍 '{name}' 검색 결과", description=ans, color=0x2ECC71))
 
 class DCAModal(discord.ui.Modal, title='⚖️ 소수점 타점 (DCA & 단타)'):
-    ticker = discord.ui.TextInput(label='매수할 주식 코드', placeholder='예: SPY, AAPL')
+    ticker = discord.ui.TextInput(label='매수할 주식 코드 (알파벳)', placeholder='예: TSLA')
     budget = discord.ui.TextInput(label='투입할 예산 (원)', placeholder='예: 15000')
     async def on_submit(self, interaction: discord.Interaction):
-        if exam_mode.get(interaction.user.id, False):
-            return await interaction.response.send_message("🛡️ **[시험기간 모드]** 차트 접근이 차단되었습니다. 공부하십시오.", ephemeral=True)
+        if exam_mode.get(interaction.user.id, False): return await interaction.response.send_message("🛡️ **[시험기간 모드]** 차트 접근 차단 중.", ephemeral=True)
         await interaction.response.defer()
         t, bdg = self.ticker.value.upper(), float(self.budget.value.replace(',', ''))
-        prompt = f"종목: {t}, 예산: {bdg:,.0f}원. 시장 감성 상태를 진단하고, 이 예산을 오늘 토스에서 얼마치 매수할지 구체적인 단가/금액을 지시해."
-        ans = await ask_ai_async(prompt, "소액 매매 전술 파트너")
-        await interaction.followup.send(embed=discord.Embed(title=f"⚖️ {t} 소수점 매매 지시서", description=ans, color=0x2ECC71))
+        prompt = f"종목: {t}, 예산: {bdg:,.0f}원. 시장 상태를 진단하고 오늘 얼마치 매수할지 지시해."
+        ans = await ask_ai_async(prompt, "전술 파트너")
+        await interaction.followup.send(embed=discord.Embed(title=f"⚖️ {t} 매매 지시서", description=ans, color=0x2ECC71))
 
-class PanicRoomModal(discord.ui.Modal, title='🧘 멘탈 방어선 (패닉 룸)'):
-    ticker = discord.ui.TextInput(label='나를 불안하게 만드는 종목', placeholder='예: TSLA')
-    reason = discord.ui.TextInput(label='불안한 이유', style=discord.TextStyle.paragraph, placeholder='예: 갑자기 떨어져서 팔고 싶어')
+class SentimentModal(discord.ui.Modal, title='📰 뉴스 감성 분석 (공포/탐욕)'):
+    ticker = discord.ui.TextInput(label='주식 코드', placeholder='예: AAPL')
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        prompt = f"종목: {self.ticker.value.upper()}, 유저의 패닉: '{self.reason.value}'. 공포에 질린 트레이더에게 체력 단련(턱걸이 한계 극복 등)에 비유하여 강력하게 멘탈을 통제해."
-        ans = await ask_ai_async(prompt, "강철 멘탈 케어 봇")
+        ans = await ask_ai_async(f"종목: {self.ticker.value.upper()}. 최근 시장 분위기를 종합해 '군중 심리'를 1~10점으로 평가해.", "감성 분석 AI")
+        await interaction.followup.send(embed=discord.Embed(title="📰 심리 스캐너", description=ans, color=0x3498DB))
+
+class PanicRoomModal(discord.ui.Modal, title='🧘 멘탈 방어선 (패닉 룸)'):
+    ticker = discord.ui.TextInput(label='나를 불안하게 만드는 종목')
+    reason = discord.ui.TextInput(label='불안한 이유', style=discord.TextStyle.paragraph)
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        ans = await ask_ai_async(f"종목: {self.ticker.value.upper()}, 유저 패닉: '{self.reason.value}'. 멘탈 통제해.", "멘탈 케어 봇")
         await interaction.followup.send(embed=discord.Embed(title="🧘 멘탈 방어선 가동", description=ans, color=0x9B59B6))
 
 class FinancialFilterButton(discord.ui.Button):
     def __init__(self):
-        super().__init__(label="📊 저평가 우량주 발굴", style=discord.ButtonStyle.primary, custom_id="ff", row=1)
+        super().__init__(label="📊 저평가 우량주 발굴", style=discord.ButtonStyle.secondary, custom_id="ff", row=1)
     async def callback(self, interaction: discord.Interaction):
-        if exam_mode.get(interaction.user.id, False):
-            return await interaction.response.send_message("🛡️ **[시험기간 모드]** 차트 접근 차단 중.", ephemeral=True)
+        if exam_mode.get(interaction.user.id, False): return await interaction.response.send_message("🛡️ 차트 접근 차단 중.", ephemeral=True)
         await interaction.response.defer()
-        prompt = f"나스닥 빅테크 중, 현재 시점에서 PER, 이익률 대비 주가가 싸진 저평가 종목 2개를 골라 필터링 보고서를 제출해."
-        ans = await ask_ai_async(prompt, "재무제표 필터링 AI")
-        await interaction.followup.send(embed=discord.Embed(title="📊 저평가 타겟 리포트", description=ans, color=0xF1C40F))
+        ans = await ask_ai_async("나스닥 빅테크 중, 저평가 종목 2개를 골라 필터링 보고서를 제출해.", "필터링 AI")
+        await interaction.followup.send(embed=discord.Embed(title="📊 저평가 리포트", description=ans, color=0xF1C40F))
 
 class HabitJournalModal(discord.ui.Modal, title='📝 훈련 일지 & 시드 장부'):
-    saved = discord.ui.TextInput(label='오늘 확보한 총알(시드) (원)', placeholder='예: 1500')
-    trade = discord.ui.TextInput(label='오늘의 매매/원칙 준수 여부', placeholder='예: 공포장 멘탈 방어 성공', required=False)
+    saved = discord.ui.TextInput(label='오늘 확보한 시드 (원)', placeholder='예: 1500')
+    trade = discord.ui.TextInput(label='매매 복기', required=False)
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
         uid = interaction.user.id
         amt = float(self.saved.value.replace(',', '')) if self.saved.value else 0
         user_savings[uid] = user_savings.get(uid, 0) + amt
-        
-        goal_text = ""
-        if uid in user_goals:
-            goal = user_goals[uid]
-            progress = generate_progress_bar(user_savings[uid], goal['price'])
-            goal_text = f"\n\n🎯 **[{goal['item']}] 목표 진행률:**\n{progress} ({user_savings[uid]:,.0f}원)"
+        goal_text = f"\n\n🎯 **목표 진행률:** {generate_progress_bar(user_savings[uid], user_goals[uid]['price'])} ({user_savings[uid]:,.0f}원)" if uid in user_goals else ""
+        ans = await ask_ai_async(f"확보 시드: {amt}원. 복기: '{self.trade.value}'. 멘탈 평가해.", "훈련 교관")
+        await interaction.followup.send(embed=discord.Embed(title="🔥 단련 일지", description=ans + goal_text, color=0xFFD700))
 
-        prompt = f"확보 시드: {amt}원 (누적: {user_savings[uid]}원). 일지: '{self.trade.value}'. 푼돈을 모아 우량주를 사는 훈련을 잘 지켰는지 체력 단련에 비유해 평가해."
-        ans = await ask_ai_async(prompt, "훈련 교관")
-        await interaction.followup.send(embed=discord.Embed(title=f"🔥 {interaction.user.name}님의 단련 일지", description=ans + goal_text, color=0xFFD700))
+class GoalSettingModal(discord.ui.Modal, title='🎯 목표 설정'):
+    item = discord.ui.TextInput(label='목표 물건', placeholder='예: 나이키 가방')
+    price = discord.ui.TextInput(label='목표 금액 (원)', placeholder='예: 50000')
+    async def on_submit(self, interaction: discord.Interaction):
+        user_goals[interaction.user.id] = {'item': self.item.value, 'price': float(self.price.value.replace(',', ''))}
+        await interaction.response.send_message("🎯 **목표 설정 완료!** 일지에 반영됩니다.", ephemeral=True)
 
 # ------------------------------------------
-# 💡 하단 UI: 드롭다운 고급 툴 (부활!)
+# 💡 하단 고급 드롭다운
 # ------------------------------------------
 class QuantToolModal(discord.ui.Modal):
     def __init__(self, tool_name: str):
         super().__init__(title=f'🛠️ {tool_name[:30]}')
         self.tool_name = tool_name
-        self.input_val = discord.ui.TextInput(label='분석 대상 (종목/단어 등)', placeholder='예: AAPL')
+        self.input_val = discord.ui.TextInput(label='분석 대상 (종목/단어 등)')
         self.add_item(self.input_val)
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        val = self.input_val.value.upper()
-        prompt = f"선택 툴: '{self.tool_name}', 대상: '{val}'. 이 툴의 목적에 맞춰 전술적이고 팩트 위주의 결과를 도출해."
-        ans = await ask_ai_async(prompt, "퀀트 파트너")
+        ans = await ask_ai_async(f"선택 툴: '{self.tool_name}', 대상: '{self.input_val.value.upper()}'. 전술적 분석해.", "퀀트 파트너")
         await interaction.followup.send(embed=discord.Embed(title=f"결과: {self.tool_name}", description=ans, color=0x95A5A6))
 
 class AdvancedSelect(discord.ui.Select):
     def __init__(self):
         options = [
-            discord.SelectOption(label="1. 🩺 재무 엑스레이 스캔", description="겉매출과 속이익 뼈대 스캔"),
-            discord.SelectOption(label="2. 📡 거래량/세력 급증 레이더", description="돈이 몰리는 모멘텀 포착"),
-            discord.SelectOption(label="3. 💸 타임머신 스노우볼", description="과거부터 모았다면 지금 얼마?"),
-            discord.SelectOption(label="4. 💥 숏커버링 (항복) 예측", description="세력 기권 폭등 타점 판독"),
-            discord.SelectOption(label="5. 💣 상폐/지뢰밭 필터", description="위험한 재무 쓰레기 판별")
+            discord.SelectOption(label="1. 🩺 재무 엑스레이 스캔", description="단순 매출이 아닌 진짜 뼈대를 분석"),
+            discord.SelectOption(label="2. 📡 세력 급증 레이더", description="돈이 무섭게 몰리는 비정상 수급 탐지"),
+            discord.SelectOption(label="3. 💸 타임머신 스노우볼", description="과거부터 샀다면 지금 얼마? (백테스트)"),
+            discord.SelectOption(label="4. 💥 숏커버링 폭발 예측", description="세력이 기권하고 폭등할 타점 판독"),
+            discord.SelectOption(label="5. 💣 상폐/지뢰밭 필터", description="상장폐지 위험 종목 걸러내기")
         ]
-        super().__init__(placeholder="👑 추가 고급 퀀트 툴 모음 (선택)", min_values=1, max_values=1, options=options)
+        super().__init__(placeholder="👑 추가 고급 퀀트 툴 모음 (상세 분석)", min_values=1, max_values=1, options=options)
         
     async def callback(self, interaction: discord.Interaction):
-        if exam_mode.get(interaction.user.id, False):
-            return await interaction.response.send_message("🛡️ **[시험기간 모드]** 차트 접근 차단 중.", ephemeral=True)
+        if exam_mode.get(interaction.user.id, False): return await interaction.response.send_message("🛡️ 차트 접근 차단 중.", ephemeral=True)
         await interaction.response.send_modal(QuantToolModal(tool_name=self.values[0]))
 
+# ------------------------------------------
+# 🎛️ 대시보드 세팅
+# ------------------------------------------
 class DashboardView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-        self.add_item(discord.ui.Button(label="⚖️ 매수/단타 타점", style=discord.ButtonStyle.success, custom_id="dca", row=0))
-        self.add_item(discord.ui.Button(label="📰 뉴스 감성 분석", style=discord.ButtonStyle.secondary, custom_id="sen", row=0))
-        self.add_item(discord.ui.Button(label="🧘 패닉 룸 (방어선)", style=discord.ButtonStyle.danger, custom_id="pan", row=0))
+        # Row 0
+        self.add_item(discord.ui.Button(label="⚖️ 매수 타점", style=discord.ButtonStyle.success, custom_id="dca", row=0))
+        self.add_item(discord.ui.Button(label="📰 감성 분석", style=discord.ButtonStyle.secondary, custom_id="sen", row=0))
+        self.add_item(discord.ui.Button(label="🧘 패닉 룸", style=discord.ButtonStyle.danger, custom_id="pan", row=0))
         
+        # Row 1 (종목 검색기 추가됨!)
+        self.add_item(discord.ui.Button(label="🔍 종목 검색기", style=discord.ButtonStyle.primary, custom_id="search", row=1))
         self.add_item(FinancialFilterButton())
-        self.add_item(discord.ui.Button(label="📝 단련 일지 (시드 장부)", style=discord.ButtonStyle.secondary, custom_id="hab", row=1))
+        self.add_item(discord.ui.Button(label="📝 단련 일지", style=discord.ButtonStyle.secondary, custom_id="hab", row=1))
         
-        self.add_item(AdvancedSelect()) # 고급 툴 드롭다운 복구!
+        # Row 2
+        self.add_item(discord.ui.Button(label="🎯 목표 설정", style=discord.ButtonStyle.success, custom_id="goal", row=2))
+        self.add_item(discord.ui.Button(label="🛡️ 시험기간 모드", style=discord.ButtonStyle.primary, custom_id="exam", row=2))
+        self.add_item(discord.ui.Button(label="📡 상황실 등록", style=discord.ButtonStyle.danger, custom_id="alert", row=2))
+
+        # Row 3
+        self.add_item(AdvancedSelect()) 
 
     async def interaction_check(self, i: discord.Interaction) -> bool:
         cid = i.data.get("custom_id")
@@ -254,16 +269,30 @@ class DashboardView(discord.ui.View):
         elif cid == "sen": await i.response.send_modal(SentimentModal())
         elif cid == "pan": await i.response.send_modal(PanicRoomModal())
         elif cid == "hab": await i.response.send_modal(HabitJournalModal())
+        elif cid == "search": await i.response.send_modal(TickerSearchModal()) # 🌟 종목 검색 모달 연결
+        elif cid == "goal": await i.response.send_modal(GoalSettingModal())
+        elif cid == "exam":
+            uid = i.user.id
+            if exam_mode.get(uid, False):
+                exam_mode[uid] = False
+                await i.response.send_message("🔓 **[모드 해제]** 훈련 복귀.", ephemeral=True)
+            else:
+                exam_mode[uid] = True
+                await i.response.send_message("🛡️ **[시험 모드 가동]** 매매 접근 차단.", ephemeral=True)
+        elif cid == "alert":
+            global alert_channel_id
+            alert_channel_id = i.channel.id
+            await i.response.send_message("📡 **[상황실 등록 완료]** 24시간 감시망 가동.")
         return True
 
 # ------------------------------------------
-# 📌 명령어 모음 & 상세 도움말 (부활!)
+# 📌 명령어 및 도움말
 # ------------------------------------------
 @bot.command(name="시작")
 async def start_cmd(ctx):
     embed = discord.Embed(
-        title="PRO 퀀트 터미널 (V24.0 그랜드 마스터)", 
-        description="🔥 완벽 설계도(Blueprint)와 모든 고급 기능이 통합되었습니다.\n❓ 봇 사용법이 궁금하다면 **`!도움말`**을 입력하세요.", 
+        title="PRO 퀀트 터미널 (V26.0 완벽 방어형)", 
+        description="🔥 **404 에러 원천 봉쇄 알고리즘 가동 중!**\n\n🔍 **[종목 검색기]**가 추가되었습니다. 한글 이름으로 티커를 쉽게 찾으세요.\n❓ 기능 상세 설명이 필요하다면 **`!도움말`**을 입력하세요.", 
         color=0x0050FF
     )
     await ctx.send(embed=embed, view=DashboardView())
@@ -271,48 +300,24 @@ async def start_cmd(ctx):
 @bot.command(name="도움말")
 async def help_cmd(ctx):
     help_text = """
-**🤖 고1 트레이더를 위한 AI 퀀트 비서 사용법**
+**🤖 V26.0 트레이더 전용 퀀트 비서 사용법**
 
-**1️⃣ 상단 핵심 무기 (버튼 5개)**
-*   ⚖️ **매수/단타 타점:** 살 주식과 예산을 적으면 환율을 계산해 소수점 진입 단가를 알려줍니다.
-*   📰 **뉴스 감성 분석:** AI가 실시간 분위기를 긁어와 대중이 공포(1점)인지 환희(10점)인지 스캔합니다.
-*   🧘 **패닉 룸 (멘탈):** 폭락장에 멘탈이 나갔을 때 누르세요. 뼈 때리는 조언으로 원칙을 지켜줍니다.
-*   📊 **저평가 발굴:** 지금 나스닥에서 주워 담을 만한 할인 종목 2개를 알아서 찾아옵니다.
-*   📝 **단련 일지:** 푼돈 아낀 걸 적으면 경험치/목표 진행률이 오릅니다.
+**1️⃣ 상단 투자 코어 (1번째 줄)**
+*   ⚖️ **매수 타점:** 토스 소수점 투자를 위해 예산을 넣으면 환율을 계산해 진입가를 알려줍니다.
+*   📰 **감성 분석:** 대중이 공포(1점)인지 환희(10점)인지 스캔합니다.
+*   🧘 **패닉 룸:** 주가가 폭락해서 팔고 싶을 때 누르세요. 멘탈을 묶어줍니다.
 
-**2️⃣ 하단 고급 툴 (드롭다운 메뉴)**
-*   재무 엑스레이, 타임머신 복리 계산, 지뢰밭 탐지 등 세부적인 차트/재무 분석 툴이 5개 숨겨져 있습니다.
+**2️⃣ 리포트 & 일지 (2번째 줄)**
+*   🔍 **종목 검색기 [NEW]:** "나이키"라고 치면 종목 코드(NKE)를 찾아줍니다.
+*   📊 **저평가 발굴:** 나스닥 할인 종목 2개를 AI가 찾아옵니다.
+*   📝 **단련 일지:** 오늘 아낀 푼돈을 적으면 목표 진행률 게이지 바가 오릅니다.
 
-**3️⃣ 특수 명령어 시스템 (채팅창에 입력)**
-*   `!상황실등록` : 이걸 치면 봇이 24시간 거래량 터진 종목을 감시하다가 알람을 보내줍니다.
-*   `!시험기간` : 중간고사 돌입! 모든 차트 접근을 차단하고 봇이 대신 감시합니다. 다시 치면 해제됩니다.
-*   `!목표설정 <가격> <물건명>` : (예: `!목표설정 50000 나이키가방`) 일지를 쓸 때마다 달성률 게이지 바가 차오릅니다!
+**3️⃣ 특수 상황 제어 버튼 (3번째 줄)**
+*   🎯 **목표 설정:** 사고 싶은 물건과 가격을 등록합니다. (일지에 게이지 표시)
+*   🛡️ **시험기간 모드:** 공부에 집중하기 위해 차트 분석을 완전히 차단합니다.
+*   📡 **상황실 등록:** 24시간 동안 거래량이 터지는 주식을 감시하다 이곳에 알람을 쏩니다.
 """
-    embed = discord.Embed(title="📖 V24.0 통합 마스터 가이드", description=help_text, color=0xF1C40F)
+    embed = discord.Embed(title="📖 V26.0 마스터 가이드", description=help_text, color=0xF1C40F)
     await ctx.send(embed=embed)
-
-@bot.command(name="상황실등록")
-async def set_alert_channel(ctx):
-    global alert_channel_id
-    alert_channel_id = ctx.channel.id
-    await ctx.send("📡 **[상황실 등록 완료]**\n24시간 무인 정찰기가 가동됩니다. 이상 징후 발생 시 이곳으로 보고합니다.")
-
-@bot.command(name="목표설정")
-async def set_goal_cmd(ctx, price: int = None, *, item: str = None):
-    if not price or not item:
-        return await ctx.send("🚨 명령어 오류! `!목표설정 50000 프로틴` 형식으로 입력하십시오.")
-    uid = ctx.author.id
-    user_goals[uid] = {'item': item, 'price': price}
-    await ctx.send(f"🎯 **레이더 설정 완료:** [{item}] (목표: {price:,.0f}원)\n일지를 쓸 때마다 진행률이 추적됩니다.")
-
-@bot.command(name="시험기간")
-async def exam_mode_cmd(ctx):
-    uid = ctx.author.id
-    if exam_mode.get(uid, False):
-        exam_mode[uid] = False
-        await ctx.send("🔓 **[시험기간 모드 해제]** 훈련 복귀를 환영합니다.")
-    else:
-        exam_mode[uid] = True
-        await ctx.send("🛡️ **[시험기간 모드 가동]** 학업 전선에 집중하십시오. 매매 접근이 차단됩니다.")
 
 bot.run(DISCORD_TOKEN)
