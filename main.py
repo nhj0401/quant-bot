@@ -18,7 +18,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write("🔥 Quant Bot V42.0 (Fusion Matrix) is Alive!".encode('utf-8'))
+        self.wfile.write("🔥 Quant Bot V42.1 (Hotfix 400 Error) is Alive!".encode('utf-8'))
     def log_message(self, format, *args): return 
 
 def run_web_server():
@@ -45,7 +45,6 @@ user_savings, user_goals, exam_mode = {}, {}, {}
 alert_channel_id = None
 CACHE_TTL = 600  
 
-# 🌟 실시간 미국 증시 타임워치 (한국 시간 24시간 기준)
 def get_market_status():
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
     weekdays = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
@@ -58,7 +57,6 @@ def get_market_status():
     curr_mins = now.hour * 60 + now.minute
     open_mins = open_h * 60 + open_m
     close_mins = close_h * 60
-    
     wd = now.weekday()
     
     is_closed = False
@@ -66,19 +64,14 @@ def get_market_status():
     elif wd == 6: is_closed = True
     elif wd == 0 and curr_mins < open_mins: is_closed = True
         
-    if is_closed:
-        return now_str, f"💤 **현재 미국 증시는 [주말 휴장]입니다.** (다음 개장: 월요일 {open_h}:{open_m})"
-    
-    if curr_mins < close_mins:
-        return now_str, f"🔥 **미국 증시 [정규장 진행 중]** (마감: 오늘 {close_h:02d}:00)"
-    elif curr_mins >= open_mins:
-        return now_str, f"🔥 **미국 증시 [정규장 진행 중]** (마감: 내일 {close_h:02d}:00)"
-    else:
-        return now_str, f"⏳ **현재 [프리마켓 / 대기장]** (개장: 오늘 {open_h}:{open_m})"
+    if is_closed: return now_str, f"💤 **현재 미국 증시는 [주말 휴장]입니다.** (다음 개장: 월요일 {open_h}:{open_m})"
+    if curr_mins < close_mins: return now_str, f"🔥 **미국 증시 [정규장 진행 중]** (마감: 오늘 {close_h:02d}:00)"
+    elif curr_mins >= open_mins: return now_str, f"🔥 **미국 증시 [정규장 진행 중]** (마감: 내일 {close_h:02d}:00)"
+    else: return now_str, f"⏳ **현재 [프리마켓 / 대기장]** (개장: 오늘 {open_h}:{open_m})"
 
 @bot.event
 async def on_ready():
-    print(f"🔥 V42.0 퓨전 매트릭스(다중 선택) 무기고 가동 완료!")
+    print(f"🔥 V42.1 핫픽스(통신 400 에러 해결) 가동 완료!")
     if not memory_cleanup_task.is_running(): memory_cleanup_task.start()
     if not autonomous_recon.is_running(): autonomous_recon.start()
 
@@ -92,7 +85,7 @@ def get_loading_embed():
     _, market_msg = get_market_status()
     return discord.Embed(
         title="⚡ 초고속 퀀트 AI 분석 중...", 
-        description=f"Llama-3 엔진이 데이터를 스캔 중입니다. 상세한 브리핑을 준비 중이니 대기하십시오.\n\n🕒 {market_msg}", 
+        description=f"Llama-3 최신 엔진이 데이터를 스캔 중입니다.\n\n🕒 {market_msg}", 
         color=0x3498DB
     )
 
@@ -100,12 +93,12 @@ def get_nuke_loading_embed():
     _, market_msg = get_market_status()
     return discord.Embed(
         title="☢️ [오메가 프로토콜] 가동 중...", 
-        description=f"모든 지표와 심리를 응축하여 최종 작전 명령서를 작성하고 있습니다. 대기하십시오.\n\n🕒 {market_msg}", 
+        description=f"모든 지표와 심리를 응축하여 최종 작전 명령서를 작성하고 있습니다.\n\n🕒 {market_msg}", 
         color=0xE74C3C
     )
 
 # ------------------------------------------
-# ⚡ 초고속 Groq API 코어 (토스 맞춤형)
+# ⚡ 초고속 Groq API 코어 (토스 맞춤형 + 디버거)
 # ------------------------------------------
 async def ask_ai_async(prompt, system_role):
     if not GROQ_API_KEY: return "🚨 GROQ API 키가 Render에 등록되지 않았습니다."
@@ -116,15 +109,17 @@ async def ask_ai_async(prompt, system_role):
 
     master_system_role = f"""너는 고등학교 1학년 트레이더를 위한 'AI 퀀트 참모'야. 
 자본금 1~5만 원 단위의 소수점 투자 및 '토스(Toss) 증권 앱'을 이용한 단타(CQB)에 능해. 
-토스 앱은 호가창이 얇고 체결 딜레이가 있으므로, 뇌동매매를 극도로 경계하고 확실한 자리에서만 진입하도록 지시해.
+토스 앱은 호가창이 얇고 딜레이가 있으므로, 확실한 자리에서만 진입하도록 지시해.
 트레이더님은 특수부대와 경찰을 꿈꾸며 체력을 단련하고 있어.
 [역할 지정]: {system_role}
-[출력 원칙]: 반드시 한국어로 답변. 이유와 원리를 고등학생 눈높이에서 아주 상세하게 설명할 것. 마크다운 표 적극 활용. 특수작전과 헬스/유도에 빗대어 엄격하고 날카롭게 조언해라."""
+[출력 원칙]: 반드시 한국어로 답변. 이유와 원리를 고등학생 눈높이에서 아주 상세하게 설명할 것. 마크다운 표 적극 활용. 특수작전과 헬스/유도에 빗대어 엄격하게 조언해라."""
 
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    
+    # 🌟 V42.1 수정: Groq의 가장 최신, 안정적인 칩셋으로 교체
     payload = {
-        "model": "llama3-70b-8192", 
+        "model": "llama-3.3-70b-versatile", 
         "messages": [
             {"role": "system", "content": master_system_role},
             {"role": "user", "content": prompt}
@@ -142,7 +137,9 @@ async def ask_ai_async(prompt, system_role):
                         ai_response_cache[cache_key] = {'text': ans_text, 'timestamp': time.time()}
                         return ans_text
                     else:
-                        return f"🚨 통신 오류 ({res.status})"
+                        # 🌟 에러 상세 텍스트 추출 (무엇 때문에 400 에러가 났는지 그대로 반환)
+                        error_text = await res.text()
+                        return f"🚨 **통신 오류 ({res.status})**\nGroq 서버 응답: `{error_text[:250]}...`\n(이 메시지가 계속 뜨면 칩셋 이름이 또 바뀌었거나 입력값에 문제가 있는 것입니다.)"
             except Exception as e:
                 return f"🚨 네트워크 통신 실패: {e}"
 
@@ -153,7 +150,7 @@ class TickerSearchModal(discord.ui.Modal, title='🔍 종목 검색'):
     company_name = discord.ui.TextInput(label='회사명', placeholder='예: 애플')
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.send_message(embed=get_loading_embed())
-        ans = await ask_ai_async(f"'{self.company_name.value}'의 미국 주식 코드를 찾고, 고등학생이 이해하기 쉽게 비즈니스 모델을 상세히 설명해.", "검색 봇")
+        ans = await ask_ai_async(f"'{self.company_name.value}'의 미국 주식 코드를 찾고, 비즈니스 모델을 상세히 설명해.", "검색 봇")
         await interaction.edit_original_response(embed=discord.Embed(title="🔍 검색 결과", description=ans, color=0x2ECC71))
 
 class DCAModal(discord.ui.Modal, title='⚖️ 매수 타점'):
@@ -162,7 +159,7 @@ class DCAModal(discord.ui.Modal, title='⚖️ 매수 타점'):
     async def on_submit(self, interaction: discord.Interaction):
         if exam_mode.get(interaction.user.id, False): return await interaction.response.send_message("🛡️ 차단 중.", ephemeral=True)
         await interaction.response.send_message(embed=get_loading_embed())
-        ans = await ask_ai_async(f"종목: {self.ticker.value.upper()}, 예산: {self.budget.value}원. 토스 소수점 투자를 활용해 언제 어떻게 매수할지 구체적 전술을 설명해.", "전술 파트너")
+        ans = await ask_ai_async(f"종목: {self.ticker.value.upper()}, 예산: {self.budget.value}원. 토스 소수점 투자를 활용해 매수 전술을 짜줘.", "전술 파트너")
         await interaction.edit_original_response(embed=discord.Embed(title=f"⚖️ {self.ticker.value.upper()} 매매 지시서", description=ans, color=0x2ECC71))
 
 class PanicRoomModal(discord.ui.Modal, title='🧘 패닉 룸'):
@@ -170,7 +167,7 @@ class PanicRoomModal(discord.ui.Modal, title='🧘 패닉 룸'):
     reason = discord.ui.TextInput(label='이유', style=discord.TextStyle.paragraph)
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.send_message(embed=get_loading_embed())
-        ans = await ask_ai_async(f"종목: {self.ticker.value.upper()}, 이유: '{self.reason.value}'. 멘탈을 꽉 잡아주는 상세한 훈련 교관의 팩트폭격을 해라.", "훈련 교관")
+        ans = await ask_ai_async(f"종목: {self.ticker.value.upper()}, 이유: '{self.reason.value}'. 멘탈을 꽉 잡아주는 팩트폭격을 해라.", "훈련 교관")
         await interaction.edit_original_response(embed=discord.Embed(title="🧘 멘탈 방어선", description=ans, color=0x9B59B6))
 
 class GoalSettingModal(discord.ui.Modal, title='🎯 목표 설정'):
@@ -196,7 +193,6 @@ class OmegaProtocolModal(discord.ui.Modal, title='☢️ 전술핵: 오메가 �
 # ------------------------------------------
 class QuantToolModal(discord.ui.Modal):
     def __init__(self, tool_name: str, category: str):
-        # 🌟 여러 개가 선택되었을 경우 제목을 '융합 전술'로 변경
         title = "🛠️ 다중 융합 전술 분석" if "," in tool_name else f"🛠️ {tool_name[:30]}"
         super().__init__(title=title)
         self.tool_name = tool_name
@@ -207,15 +203,15 @@ class QuantToolModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.send_message(embed=get_loading_embed())
         if self.category == "daytrade":
-            prompt = f"가동 전술들: '{self.tool_name}', 대상 종목: '{self.input_val.value.upper()}'. 사용자가 토스(Toss) 앱으로 단타를 치고 있다. 선택된 여러 전술들을 완벽하게 융합하여 호가창 리스크와 단기 흐름을 구체적으로 분석하고 칼손절 원칙을 강조해라."
+            prompt = f"가동 전술들: '{self.tool_name}', 대상 종목: '{self.input_val.value.upper()}'. 토스(Toss) 앱으로 단타를 친다. 선택된 여러 전술들을 완벽하게 융합하여 호가창 리스크와 단기 흐름을 구체적으로 분석하고 칼손절 원칙을 강조해라."
         else:
-            prompt = f"가동 전술들: '{self.tool_name}', 대상 종목: '{self.input_val.value.upper()}'. 사용자가 여러 전술을 동시에 선택했다. 고등학교 1학년 눈높이에 맞춰 선택된 툴들의 의미를 종합하고 현재 종목에 어떻게 융합 적용되는지 아주 상세하게 브리핑해라."
+            prompt = f"가동 전술들: '{self.tool_name}', 대상 종목: '{self.input_val.value.upper()}'. 고등학교 1학년 눈높이에 맞춰 선택된 툴들의 의미를 종합하고 현재 종목에 어떻게 융합 적용되는지 아주 상세하게 브리핑해라."
             
         ans = await ask_ai_async(prompt, "퀀트 맥가이버")
         await interaction.edit_original_response(embed=discord.Embed(title=f"🔥 결과: {self.input_val.value.upper()} 융합 리포트", description=ans, color=0x95A5A6))
 
 # ------------------------------------------
-# 🗂️ 드롭다운 3종 (🌟 동시 다중 선택 가능하도록 max_values=5 적용!)
+# 🗂️ 드롭다운 3종 (최대 5개 동시 체크 가능)
 # ------------------------------------------
 class GeneralSelect(discord.ui.Select):
     def __init__(self):
@@ -229,7 +225,7 @@ class GeneralSelect(discord.ui.Select):
         super().__init__(placeholder="🟢 [일반 훈련] (최대 5개 동시 체크 가능)", min_values=1, max_values=5, options=options)
     async def callback(self, interaction: discord.Interaction):
         if exam_mode.get(interaction.user.id, False): return await interaction.response.send_message("🛡️ 차단 중", ephemeral=True)
-        selected = ", ".join(self.values) # 선택된 여러 개를 합칩니다!
+        selected = ", ".join(self.values)
         await interaction.response.send_modal(QuantToolModal(tool_name=selected, category="general"))
 
 class SpecialSelect(discord.ui.Select):
@@ -252,12 +248,12 @@ class DayTradeSelect(discord.ui.Select):
         options = [
             discord.SelectOption(label="1. ⚡ 1분봉 스캘핑 타점 판독기"), discord.SelectOption(label="2. 🚀 시초가 갭상승 스나이퍼"),
             discord.SelectOption(label="3. 💣 거래량 폭발 돌파 매매"), discord.SelectOption(label="4. 🩸 급락 눌림목 암살 전술"),
-            discord.SelectOption(label="5. 🛡️ -2% 칼손절 강제 탈출"), discord.SelectOption(label="6. 🧊 VI(변동성 완화) 예측"),
-            discord.SelectOption(label="7. 📉 투매(설거지) 폭포수 경보"), discord.SelectOption(label="8. 🧠 뇌동매매(FOMO) 차단기"),
-            discord.SelectOption(label="9. 💸 반익절(트레일링) 가이드"), discord.SelectOption(label="10. 🕵️ 장전 수급 스파이"),
+            discord.SelectOption(label="5. 🛡️ -2% 칼손절 강제 탈출"), discord.SelectOption(label="6. 🧊 VI 예측"),
+            discord.SelectOption(label="7. 📉 투매 폭포수 경보"), discord.SelectOption(label="8. 🧠 뇌동매매(FOMO) 차단기"),
+            discord.SelectOption(label="9. 💸 반익절 가이드"), discord.SelectOption(label="10. 🕵️ 장전 수급 스파이"),
             discord.SelectOption(label="11. ⚖️ 얇은 호가창 지뢰밭 탐지"), discord.SelectOption(label="12. 📊 VWAP 기준선 판독"),
-            discord.SelectOption(label="13. 📉 쌍봉(고점) 하락 패턴 탐지"), discord.SelectOption(label="14. 🎣 밑꼬리 반등 낚시 전술"),
-            discord.SelectOption(label="15. 💊 복수 매매 진정제"), discord.SelectOption(label="16. 🤖 프로그램 매크로 추적"),
+            discord.SelectOption(label="13. 📉 쌍봉 하락 패턴 탐지"), discord.SelectOption(label="14. 🎣 밑꼬리 반등 낚시 전술"),
+            discord.SelectOption(label="15. 💊 복수 매매 진정제"), discord.SelectOption(label="16. 🤖 매크로 추적"),
             discord.SelectOption(label="17. 🙏 기도 매매 팩트 폭격기"), discord.SelectOption(label="18. 🏆 거래대금 싹쓸이 스캔"),
             discord.SelectOption(label="19. ⏳ 3분 홀딩 멘탈 테스트"), discord.SelectOption(label="20. 🐺 초변동성 심박수 측정")
         ]
@@ -305,15 +301,12 @@ class DashboardView(discord.ui.View):
             await i.response.send_message("📡 **[상황실 등록 완료]** 24시간 감시망 가동.")
         return True
 
-# ------------------------------------------
-# 📌 명령어 및 백과사전
-# ------------------------------------------
 @bot.command(name="시작")
 async def start_cmd(ctx):
     now_str, market_msg = get_market_status()
     embed = discord.Embed(
-        title="PRO 퀀트 터미널 (V42.0 퓨전 매트릭스)", 
-        description=f"📅 **현재 시각:** {now_str}\n{market_msg}\n\n🔥 **[다중 융합 선택 기능 장착]**\n이제 드롭다운에서 한 번에 여러 툴을 동시에 체크하여 융합 분석을 지시할 수 있습니다.\n❓ **`!도움말`**을 치면 전체 사용법이 나옵니다.", 
+        title="PRO 퀀트 터미널 (V42.1 400에러 해결)", 
+        description=f"📅 **현재 시각:** {now_str}\n{market_msg}\n\n🔥 **[최신 AI 칩셋 장착]**\n구형 칩셋을 버리고 최신 엔진으로 교체 완료.\n❓ **`!도움말`**을 치면 전체 사용법이 나옵니다.", 
         color=0x0050FF
     )
     await ctx.send(embed=embed, view=DashboardView())
@@ -321,32 +314,18 @@ async def start_cmd(ctx):
 @bot.command(name="도움말")
 async def help_cmd(ctx):
     help_text = """
-**🤖 V42.0 특수부대 퀀트 비서 종합 가이드**
+**🤖 V42.1 특수부대 퀀트 비서 종합 가이드**
 
 **1️⃣ 팁: 다중 융합 분석 (강력 추천) 🔥**
-* 디스코드 특성상 드롭다운 메뉴를 연달아 누르기가 불편합니다. 
-* 이를 돌파하기 위해 **드롭다운 안에서 최대 5개까지 여러 전술을 한꺼번에 체크**하고 밖을 누르세요. AI가 5개 전술을 융합하여 단 하나의 리포트를 뽑아냅니다!
+* **드롭다운 안에서 최대 5개까지 여러 전술을 한꺼번에 체크**하고 밖을 누르세요. AI가 5개 전술을 융합하여 단 하나의 리포트를 뽑아냅니다!
 
-**2️⃣ 상단 코어 버튼 (필수 기능)**
-*   🔍 **검색:** 영어 종목 코드를 찾아주고 회사가 뭐하는 곳인지 상세히 설명합니다.
-*   ⚖️ **타점:** 토스로 모으는 소수점 주식의 오늘자 진입 전략을 짭니다.
-*   🧘 **패닉룸:** 주가가 폭락해 불안할 때, 감정을 통제하고 팩트를 체크해 줍니다.
-*   🎯 **목표:** 사고 싶은 물건과 가격을 등록해 동기부여를 세팅합니다.
+**2️⃣ 🟢 [일반 훈련] / 🔴 [특수 작전] / ⚡ [CQB 단타 전술]**
+*   가치투자부터 1분봉 초단타까지 40종의 툴이 탑재되어 있습니다.
 
-**3️⃣ 🟢 [일반 훈련] 툴박스 (가치투자 & 펀더멘탈 10종)**
-*   재무 안전성, 배당금 복리 시뮬레이션, 물타기 계산기 등 우량주를 안전하게 장기 투자할 때 필요한 분석을 제공합니다.
-
-**4️⃣ 🔴 [특수 작전] 툴박스 (하이리스크 추적 10종)**
-*   세력 수급 레이더, 숏커버링 예측 등 스나이퍼처럼 타점을 노릴 때 씁니다.
-
-**5️⃣ ⚡ [CQB 단타 전술] 툴박스 (토스 최적화 초단타 20종)**
-*   1분봉 스캘핑, 시초가 갭상승, 뇌동매매 차단 등 초단위 변동성에서 살아남기 위한 극한의 단타 전술입니다. 토스 앱 환경에 맞춰 뼈때리게 분석해 줍니다.
-
-**6️⃣ 하단 통제실 버튼**
+**3️⃣ 하단 통제실 버튼**
 *   ☢️ **오메가 프로토콜:** 재무/수급/차트/심리를 전부 갈아 넣어 1장의 최종 작전 명령서를 작성합니다.
-*   🛡️ **시험모드:** 공부에 집중하기 위해 차트 접근을 강제로 막습니다.
 """
-    embed = discord.Embed(title="📖 V42.0 백과사전 가이드", description=help_text, color=0xF1C40F)
+    embed = discord.Embed(title="📖 V42.1 백과사전 가이드", description=help_text, color=0xF1C40F)
     await ctx.send(embed=embed)
 
 bot.run(DISCORD_TOKEN)
