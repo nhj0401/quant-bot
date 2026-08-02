@@ -18,7 +18,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write("🔥 Quant Bot V30.0 (Premium UX) is Alive!".encode('utf-8'))
+        self.wfile.write("🔥 Quant Bot V32.0 (Multi-Key & Transparent UX) is Alive!".encode('utf-8'))
     def log_message(self, format, *args): return 
 
 def run_web_server():
@@ -27,10 +27,19 @@ def run_web_server():
 threading.Thread(target=run_web_server, daemon=True).start()
 
 # ==========================================
-# 🔒 환경 변수 및 봇 설정
+# 🔒 환경 변수 및 최대 5개 멀티 API 키 설정
 # ==========================================
 DISCORD_TOKEN = os.environ.get('DISCORD_TOKEN')
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+
+# 🌟 1번부터 5번까지 등록된 API 키를 싹 긁어모읍니다.
+API_KEYS = []
+for i in range(1, 6):
+    key = os.environ.get(f'GEMINI_API_KEY_{i}')
+    if key: API_KEYS.append(key.strip())
+
+# (만약 옛날 방식인 GEMINI_API_KEY 하나만 등록했다면 그것도 포함)
+if not API_KEYS and os.environ.get('GEMINI_API_KEY'):
+    API_KEYS.append(os.environ.get('GEMINI_API_KEY').strip())
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -47,7 +56,7 @@ CACHE_TTL = 600
 
 @bot.event
 async def on_ready():
-    print(f'🔥 V30.0 프리미엄 UX/UI 패치 완료: {bot.user.name}')
+    print(f'🔥 V32.0 5-Key 멀티 코어 가동 완료! (현재 장착된 통신 키: {len(API_KEYS)}개)')
     if not memory_cleanup_task.is_running(): memory_cleanup_task.start()
     if not autonomous_recon.is_running(): autonomous_recon.start()
 
@@ -64,18 +73,21 @@ def generate_progress_bar(current, total, length=15):
     empty = length - filled
     return f"[{'█' * filled}{'░' * empty}] {ratio * 100:.1f}%"
 
-# 🌟 고급스러운 로딩 화면 (수익화용 프리미엄 UX)
+# 🌟 유저를 답답하게 하지 않는 정직하고 확실한 로딩 화면
 def get_loading_embed():
     return discord.Embed(
-        title="⏳ AI 퀀트 엔진 가동 중...", 
-        description="실시간 시장 데이터를 스캔하고 치열하게 고민하고 있습니다.\n잠시만 대기하십시오.", 
+        title="⏳ 퀀트 AI 분석 진행 중...", 
+        description="실시간 데이터를 스캔하며 최적의 전술을 도출하고 있습니다.\n잠시만 기다려주십시오.", 
         color=0x3498DB
     )
 
 # ------------------------------------------
-# ⚡ [딜레이 제로] 초고속 AI 코어 엔진
+# ⚡ [초고속 스위칭] 멀티 키 AI 코어 엔진
 # ------------------------------------------
 async def ask_ai_async(prompt, system_role):
+    if not API_KEYS:
+        return "🚨 구글 API 키가 하나도 등록되지 않았습니다."
+
     cache_key = f"{system_role}_{prompt}"
     curr = time.time()
     if cache_key in ai_response_cache and (curr - ai_response_cache[cache_key]['timestamp']) < CACHE_TTL:
@@ -85,31 +97,35 @@ async def ask_ai_async(prompt, system_role):
 자본금 1~5만 원 단위의 소수점 투자(DCA)를 가장 효율적으로 리딩하며, 단타와 멘탈 방어 전술에 능해.
 트레이더님은 경찰/특수부대를 꿈꾸며 체력(턱걸이, 푸시업, 유도)을 단련하듯 시드머니를 굴리고 있어.
 [역할 지정]: {system_role}
-[출력 원칙]: 마크다운 표 적극 활용, 수치화, 핵심만 간결하게 지시."""
+[출력 원칙]: 마크다운 표 적극 활용, 수치화, 팩트 기반 요약."""
 
     payload = {
         "contents": [{"parts": [{"text": f"{master_system_role}\n\n{prompt}"}]}],
         "generationConfig": {"temperature": 0.7}
     }
     
-    fast_models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"]
+    fast_models = ["gemini-1.5-flash", "gemini-2.0-flash"]
     
     async with api_semaphore:
         async with aiohttp.ClientSession() as session:
-            for model_name in fast_models:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
-                try:
-                    async with session.post(url, json=payload, timeout=10.0) as res:
-                        if res.status == 200:
-                            data = await res.json()
-                            ans_text = data['candidates'][0]['content']['parts'][0]['text']
-                            ai_response_cache[cache_key] = {'text': ans_text, 'timestamp': curr}
-                            return ans_text
-                        elif res.status in [429, 404]: 
-                            continue 
-                except Exception:
-                    continue 
-            return "🚨 **[AI 과부하]** 무료 허용량을 초과했습니다. 딱 60초만 쉬었다가 다시 눌러주세요."
+            # 🌟 장착된 1번 키부터 최대 5번 키까지 차례대로 빛의 속도로 찔러봄!
+            for api_key in API_KEYS:
+                for model_name in fast_models:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+                    try:
+                        async with session.post(url, json=payload, timeout=8.0) as res:
+                            if res.status == 200:
+                                data = await res.json()
+                                ans_text = data['candidates'][0]['content']['parts'][0]['text']
+                                ai_response_cache[cache_key] = {'text': ans_text, 'timestamp': time.time()}
+                                return ans_text
+                            elif res.status == 429:
+                                break # 해당 API 키가 과부하(429)면 기다리지 않고 즉시 다음 API 키로 스위칭!
+                    except Exception:
+                        continue 
+            
+            # 장착된 키 5개를 전부 돌렸는데도 다 한도가 꽉 찼다면 정직하게 안내
+            return f"⏳ **[AI 통신망 과부하]** 장착된 {len(API_KEYS)}개의 통신망이 모두 최대 한도에 도달했습니다. 잠시만 기다리신 후 다시 시도해주세요!"
 
 async def fetch_stock_async(ticker, period="5d"):
     curr = time.time()
@@ -147,19 +163,15 @@ async def autonomous_recon():
         await ch.send(embed=discord.Embed(title="🚨 [긴급] 수급 이상 징후 포착", description=ans, color=0xE74C3C))
 
 # ------------------------------------------
-# 🖥️ 상단 UI: 모달 (입력창 + 로딩 애니메이션 적용)
+# 🖥️ 상단 UI: 모달 (입력창 + 로딩 애니메이션)
 # ------------------------------------------
 class TickerSearchModal(discord.ui.Modal, title='🔍 종목 코드(티커) 검색기'):
     company_name = discord.ui.TextInput(label='회사 이름 (예: 애플, 팔란티어)', placeholder='이름을 입력하세요')
     async def on_submit(self, interaction: discord.Interaction):
-        # 🌟 로딩 화면 즉시 송출
         await interaction.response.send_message(embed=get_loading_embed())
-        
         name = self.company_name.value
         prompt = f"회사명 '{name}'의 미국 주식 공식 종목 코드(티커)를 찾아줘. 그리고 1줄로 요약해."
         ans = await ask_ai_async(prompt, "종목 검색 봇")
-        
-        # 🌟 결과가 나오면 로딩 화면을 결과 화면으로 스르륵 덮어씌움 (edit)
         await interaction.edit_original_response(embed=discord.Embed(title=f"🔍 '{name}' 검색 결과", description=ans, color=0x2ECC71))
 
 class DCAModal(discord.ui.Modal, title='⚖️ 소수점 타점 (DCA & 단타)'):
@@ -168,9 +180,8 @@ class DCAModal(discord.ui.Modal, title='⚖️ 소수점 타점 (DCA & 단타)')
     async def on_submit(self, interaction: discord.Interaction):
         if exam_mode.get(interaction.user.id, False): return await interaction.response.send_message("🛡️ **[시험기간]** 차트 접근 차단 중.", ephemeral=True)
         await interaction.response.send_message(embed=get_loading_embed())
-        
         t, bdg = self.ticker.value.upper(), float(self.budget.value.replace(',', ''))
-        prompt = f"종목: {t}, 예산: {bdg:,.0f}원. 시장 상태를 진단하고 오늘 얼마치 매수할지 지시해."
+        prompt = f"종목: {t}, 예산: {bdg:,.0f}원. 시장 상태 진단하고 매수 지시해."
         ans = await ask_ai_async(prompt, "전술 파트너")
         await interaction.edit_original_response(embed=discord.Embed(title=f"⚖️ {t} 매매 지시서", description=ans, color=0x2ECC71))
 
@@ -178,7 +189,7 @@ class SentimentModal(discord.ui.Modal, title='📰 뉴스 감성 분석 (공포/
     ticker = discord.ui.TextInput(label='주식 코드', placeholder='예: AAPL')
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.send_message(embed=get_loading_embed())
-        ans = await ask_ai_async(f"종목: {self.ticker.value.upper()}. 최근 시장 분위기를 종합해 '군중 심리'를 1~10점으로 평가해.", "감성 분석 AI")
+        ans = await ask_ai_async(f"종목: {self.ticker.value.upper()}. 분위기를 종합해 '군중 심리'를 1~10점으로 평가해.", "감성 분석 AI")
         await interaction.edit_original_response(embed=discord.Embed(title="📰 심리 스캐너", description=ans, color=0x3498DB))
 
 class PanicRoomModal(discord.ui.Modal, title='🧘 멘탈 방어선 (패닉 룸)'):
@@ -189,14 +200,13 @@ class PanicRoomModal(discord.ui.Modal, title='🧘 멘탈 방어선 (패닉 룸)
         ans = await ask_ai_async(f"종목: {self.ticker.value.upper()}, 유저 패닉: '{self.reason.value}'. 멘탈 통제해.", "멘탈 케어 봇")
         await interaction.edit_original_response(embed=discord.Embed(title="🧘 멘탈 방어선 가동", description=ans, color=0x9B59B6))
 
-# FinancialFilterButton 에도 로딩 적용!
 class FinancialFilterButton(discord.ui.Button):
     def __init__(self):
         super().__init__(label="📊 저평가 우량주 발굴", style=discord.ButtonStyle.secondary, custom_id="ff", row=1)
     async def callback(self, interaction: discord.Interaction):
         if exam_mode.get(interaction.user.id, False): return await interaction.response.send_message("🛡️ 차트 접근 차단 중.", ephemeral=True)
         await interaction.response.send_message(embed=get_loading_embed())
-        ans = await ask_ai_async("나스닥 빅테크 중, 저평가 종목 2개를 골라 필터링 보고서를 제출해.", "필터링 AI")
+        ans = await ask_ai_async("나스닥 빅테크 중 저평가 종목 2개를 골라 리포트를 제출해.", "필터링 AI")
         await interaction.edit_original_response(embed=discord.Embed(title="📊 저평가 리포트", description=ans, color=0xF1C40F))
 
 class HabitJournalModal(discord.ui.Modal, title='📝 훈련 일지 & 시드 장부'):
@@ -215,7 +225,6 @@ class GoalSettingModal(discord.ui.Modal, title='🎯 목표 설정'):
     item = discord.ui.TextInput(label='목표 물건', placeholder='예: 나이키 가방')
     price = discord.ui.TextInput(label='목표 금액 (원)', placeholder='예: 50000')
     async def on_submit(self, interaction: discord.Interaction):
-        # 목표 설정은 AI가 필요 없으니 즉시 완료 (로딩 불필요)
         user_goals[interaction.user.id] = {'item': self.item.value, 'price': float(self.price.value.replace(',', ''))}
         await interaction.response.send_message("🎯 **목표 설정 완료!** 일지에 반영됩니다.", ephemeral=True)
 
@@ -247,7 +256,6 @@ class AdvancedSelect(discord.ui.Select):
         
     async def callback(self, interaction: discord.Interaction):
         if exam_mode.get(interaction.user.id, False): return await interaction.response.send_message("🛡️ 차트 접근 차단 중.", ephemeral=True)
-        # 드롭다운 선택 시에는 입력창(모달)을 띄워줘야 하므로 로딩 불필요
         await interaction.response.send_modal(QuantToolModal(tool_name=self.values[0]))
 
 # ------------------------------------------
@@ -267,7 +275,6 @@ class DashboardView(discord.ui.View):
         self.add_item(discord.ui.Button(label="🎯 목표 설정", style=discord.ButtonStyle.success, custom_id="goal", row=2))
         self.add_item(discord.ui.Button(label="🛡️ 시험기간 모드", style=discord.ButtonStyle.primary, custom_id="exam", row=2))
         self.add_item(discord.ui.Button(label="📡 상황실 등록", style=discord.ButtonStyle.danger, custom_id="alert", row=2))
-
         self.add_item(AdvancedSelect()) 
 
     async def interaction_check(self, i: discord.Interaction) -> bool:
@@ -298,10 +305,33 @@ class DashboardView(discord.ui.View):
 @bot.command(name="시작")
 async def start_cmd(ctx):
     embed = discord.Embed(
-        title="PRO 퀀트 터미널 (V30.0 프리미엄 UX)", 
-        description="🔥 **[동적 로딩 UI 적용 완료]**\n이제 분석 중에 봇이 멈춘 것처럼 보이지 않고, 세련된 로딩 화면을 제공합니다.\n\n❓ **`!도움말`**을 치면 전체 사용법이 나옵니다.", 
+        title="PRO 퀀트 터미널 (V32.0 5-Key 멀티 코어)", 
+        description="🔥 **[엔터프라이즈급 API 스위칭 시스템 가동]**\n이제 봇이 과부하에 걸리면 대기하지 않고, 장착된 다음 구글 통신망으로 즉각 갈아타서 팩트를 꽂아 넣습니다.\n❓ **`!도움말`**을 치면 전체 사용법이 나옵니다.", 
         color=0x0050FF
     )
     await ctx.send(embed=embed, view=DashboardView())
+
+@bot.command(name="도움말")
+async def help_cmd(ctx):
+    help_text = """
+**🤖 V32.0 퀀트 비서 사용법**
+
+**1️⃣ 상단 코어 (1번째 줄)**
+*   ⚖️ **매수 타점:** 토스 예산을 넣으면 환율을 계산해 진입가를 알려줍니다.
+*   📰 **감성 분석:** 대중이 공포(1점)인지 환희(10점)인지 스캔합니다.
+*   🧘 **패닉 룸:** 주가가 폭락해서 팔고 싶을 때 멘탈을 묶어줍니다.
+
+**2️⃣ 리포트 & 일지 (2번째 줄)**
+*   🔍 **종목 검색기:** "나이키"라고 치면 종목 코드(NKE)를 찾아줍니다.
+*   📊 **저평가 발굴:** 나스닥 할인 종목 2개를 AI가 찾아옵니다.
+*   📝 **단련 일지:** 오늘 아낀 시드를 적으면 목표 진행률 게이지 바가 오릅니다.
+
+**3️⃣ 특수 제어 (3번째 줄)**
+*   🎯 **목표 설정:** 사고 싶은 물건과 가격을 등록합니다. (일지에 게이지 표시)
+*   🛡️ **시험기간 모드:** 공부에 집중하기 위해 차트 분석을 완전히 차단합니다.
+*   📡 **상황실 등록:** 24시간 거래량이 터지는 주식을 감시하다 이곳에 알람을 쏩니다.
+"""
+    embed = discord.Embed(title="📖 V32.0 마스터 가이드", description=help_text, color=0xF1C40F)
+    await ctx.send(embed=embed)
 
 bot.run(DISCORD_TOKEN)
