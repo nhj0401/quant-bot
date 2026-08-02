@@ -18,7 +18,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write("🔥 Quant Bot V26.0 (Error-Proof & Search) is Alive!".encode('utf-8'))
+        self.wfile.write("🔥 Quant Bot V28.0 (Rate Limit Bypass) is Alive!".encode('utf-8'))
     def log_message(self, format, *args): return 
 
 def run_web_server():
@@ -47,7 +47,7 @@ CACHE_TTL = 600
 
 @bot.event
 async def on_ready():
-    print(f'🔥 V26.0 에러 무적 방어 & 종목 검색기 탑재 완료: {bot.user.name}')
+    print(f'🔥 V28.0 구글 과부하 강제 돌파 패치 완료: {bot.user.name}')
     if not memory_cleanup_task.is_running(): memory_cleanup_task.start()
     if not autonomous_recon.is_running(): autonomous_recon.start()
 
@@ -65,7 +65,7 @@ def generate_progress_bar(current, total, length=15):
     return f"[{'█' * filled}{'░' * empty}] {ratio * 100:.1f}%"
 
 # ------------------------------------------
-# ⚡ [무적 회피망] AI 코어 엔진 (404 완벽 방어)
+# ⚡ [무적 회피망] AI 코어 엔진 (429 버그 완벽 수정)
 # ------------------------------------------
 async def ask_ai_async(prompt, system_role):
     cache_key = f"{system_role}_{prompt}"
@@ -84,29 +84,37 @@ async def ask_ai_async(prompt, system_role):
         "generationConfig": {"temperature": 0.7}
     }
     
-    # 🌟 404 에러 방지 시스템: 최신 모델부터 옛날 모델까지 차례대로 찔러봅니다.
-    fallback_models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+    # 무료 한도가 가장 넉넉한 1.5-flash를 우선 배치
+    fallback_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
     
     async with api_semaphore:
         async with aiohttp.ClientSession() as session:
             for model_name in fallback_models:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
-                try:
-                    async with session.post(url, json=payload, timeout=15.0) as res:
-                        if res.status == 200:
-                            data = await res.json()
-                            ans_text = data['candidates'][0]['content']['parts'][0]['text']
-                            ai_response_cache[cache_key] = {'text': ans_text, 'timestamp': curr}
-                            return ans_text
-                        elif res.status == 404:
-                            continue # 해당 모델 이름이 구글 서버에 없으면 다음 모델로 즉시 넘어감!
-                        else:
-                            error_text = await res.text()
-                            return f"🚨 통신 오류 ({res.status}): 구글 서버 문제 발생"
-                except Exception:
-                    continue # 타임아웃 등 에러 발생 시 다음 모델 시도
+                
+                # 🌟 과부하(429) 발생 시 최대 3번(약 12초간) 물고 늘어지기!
+                for attempt in range(3): 
+                    try:
+                        async with session.post(url, json=payload, timeout=20.0) as res:
+                            if res.status == 200:
+                                data = await res.json()
+                                ans_text = data['candidates'][0]['content']['parts'][0]['text']
+                                ai_response_cache[cache_key] = {'text': ans_text, 'timestamp': time.time()}
+                                return ans_text
+                            elif res.status == 429: # Too Many Requests
+                                # 429가 뜨면 4초를 기다렸다가 재시도합니다. (1분 제한 타이머를 녹이기 위함)
+                                await asyncio.sleep(4) 
+                                continue 
+                            elif res.status == 404: 
+                                break # 404면 이 모델은 버리고 즉시 다음 모델로!
+                            else:
+                                break # 알 수 없는 에러도 다음 모델로
+                    except Exception:
+                        await asyncio.sleep(2)
+                        continue # 타임아웃 나면 2초 쉬고 다시 시도
             
-            return "🚨 모든 통신망 실패: 구글 서버가 응답하지 않습니다."
+            # 모든 시도를 다 했는데도 429에 걸려있다면, 유저에게 진짜 1분을 쉬라고 알려줍니다.
+            return "🚨 **[구글 AI 한도 초과]** 무료 API 제한(1분당 15회)이 초과되었습니다. 딱 1분만 기다리신 후 다시 버튼을 눌러주세요!"
 
 async def fetch_stock_async(ticker, period="5d"):
     curr = time.time()
@@ -144,10 +152,10 @@ async def autonomous_recon():
         await ch.send(embed=discord.Embed(title="🚨 [긴급] 수급 이상 징후 포착", description=ans, color=0xE74C3C))
 
 # ------------------------------------------
-# 🖥️ 상단 UI: 추가된 종목 검색기 및 기존 모달
+# 🖥️ 상단 UI: 종목 검색기 및 핵심 모달
 # ------------------------------------------
 class TickerSearchModal(discord.ui.Modal, title='🔍 종목 코드(티커) 검색기'):
-    company_name = discord.ui.TextInput(label='회사 이름 (예: 애플, 팔란티어, 코카콜라)', placeholder='이름을 입력하세요')
+    company_name = discord.ui.TextInput(label='회사 이름 (예: 애플, 팔란티어)', placeholder='이름을 입력하세요')
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
         name = self.company_name.value
@@ -245,22 +253,18 @@ class AdvancedSelect(discord.ui.Select):
 class DashboardView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-        # Row 0
         self.add_item(discord.ui.Button(label="⚖️ 매수 타점", style=discord.ButtonStyle.success, custom_id="dca", row=0))
         self.add_item(discord.ui.Button(label="📰 감성 분석", style=discord.ButtonStyle.secondary, custom_id="sen", row=0))
         self.add_item(discord.ui.Button(label="🧘 패닉 룸", style=discord.ButtonStyle.danger, custom_id="pan", row=0))
         
-        # Row 1 (종목 검색기 추가됨!)
         self.add_item(discord.ui.Button(label="🔍 종목 검색기", style=discord.ButtonStyle.primary, custom_id="search", row=1))
         self.add_item(FinancialFilterButton())
         self.add_item(discord.ui.Button(label="📝 단련 일지", style=discord.ButtonStyle.secondary, custom_id="hab", row=1))
         
-        # Row 2
         self.add_item(discord.ui.Button(label="🎯 목표 설정", style=discord.ButtonStyle.success, custom_id="goal", row=2))
         self.add_item(discord.ui.Button(label="🛡️ 시험기간 모드", style=discord.ButtonStyle.primary, custom_id="exam", row=2))
         self.add_item(discord.ui.Button(label="📡 상황실 등록", style=discord.ButtonStyle.danger, custom_id="alert", row=2))
 
-        # Row 3
         self.add_item(AdvancedSelect()) 
 
     async def interaction_check(self, i: discord.Interaction) -> bool:
@@ -269,7 +273,7 @@ class DashboardView(discord.ui.View):
         elif cid == "sen": await i.response.send_modal(SentimentModal())
         elif cid == "pan": await i.response.send_modal(PanicRoomModal())
         elif cid == "hab": await i.response.send_modal(HabitJournalModal())
-        elif cid == "search": await i.response.send_modal(TickerSearchModal()) # 🌟 종목 검색 모달 연결
+        elif cid == "search": await i.response.send_modal(TickerSearchModal())
         elif cid == "goal": await i.response.send_modal(GoalSettingModal())
         elif cid == "exam":
             uid = i.user.id
@@ -291,33 +295,10 @@ class DashboardView(discord.ui.View):
 @bot.command(name="시작")
 async def start_cmd(ctx):
     embed = discord.Embed(
-        title="PRO 퀀트 터미널 (V26.0 완벽 방어형)", 
-        description="🔥 **404 에러 원천 봉쇄 알고리즘 가동 중!**\n\n🔍 **[종목 검색기]**가 추가되었습니다. 한글 이름으로 티커를 쉽게 찾으세요.\n❓ 기능 상세 설명이 필요하다면 **`!도움말`**을 입력하세요.", 
+        title="PRO 퀀트 터미널 (V28.0 한도 초과 방어형)", 
+        description="🔥 **[과부하 돌파 알고리즘 가동 중!]**\n구글 서버 횟수 제한에 걸려도 봇이 끈질기게 재시도합니다.\n\n⚠️ 너무 빠르게 여러 버튼을 누르면 구글이 차단할 수 있으니 10초 간격으로 눌러주세요!", 
         color=0x0050FF
     )
     await ctx.send(embed=embed, view=DashboardView())
-
-@bot.command(name="도움말")
-async def help_cmd(ctx):
-    help_text = """
-**🤖 V26.0 트레이더 전용 퀀트 비서 사용법**
-
-**1️⃣ 상단 투자 코어 (1번째 줄)**
-*   ⚖️ **매수 타점:** 토스 소수점 투자를 위해 예산을 넣으면 환율을 계산해 진입가를 알려줍니다.
-*   📰 **감성 분석:** 대중이 공포(1점)인지 환희(10점)인지 스캔합니다.
-*   🧘 **패닉 룸:** 주가가 폭락해서 팔고 싶을 때 누르세요. 멘탈을 묶어줍니다.
-
-**2️⃣ 리포트 & 일지 (2번째 줄)**
-*   🔍 **종목 검색기 [NEW]:** "나이키"라고 치면 종목 코드(NKE)를 찾아줍니다.
-*   📊 **저평가 발굴:** 나스닥 할인 종목 2개를 AI가 찾아옵니다.
-*   📝 **단련 일지:** 오늘 아낀 푼돈을 적으면 목표 진행률 게이지 바가 오릅니다.
-
-**3️⃣ 특수 상황 제어 버튼 (3번째 줄)**
-*   🎯 **목표 설정:** 사고 싶은 물건과 가격을 등록합니다. (일지에 게이지 표시)
-*   🛡️ **시험기간 모드:** 공부에 집중하기 위해 차트 분석을 완전히 차단합니다.
-*   📡 **상황실 등록:** 24시간 동안 거래량이 터지는 주식을 감시하다 이곳에 알람을 쏩니다.
-"""
-    embed = discord.Embed(title="📖 V26.0 마스터 가이드", description=help_text, color=0xF1C40F)
-    await ctx.send(embed=embed)
 
 bot.run(DISCORD_TOKEN)
