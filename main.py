@@ -45,14 +45,12 @@ user_savings, user_goals, exam_mode = {}, {}, {}
 alert_channel_id = None
 CACHE_TTL = 600  
 
-# 🌟 [신규 기능] 실시간 미국 증시 타임워치 (한국 시간 기준)
+# 🌟 실시간 미국 증시 타임워치 (한국 시간 24시간 기준)
 def get_market_status():
-    # UTC 기준 시간에서 9시간을 더해 정확한 KST(한국표준시) 획득
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
     weekdays = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
     now_str = now.strftime(f"%Y년 %m월 %d일 {weekdays[now.weekday()]} %H:%M")
     
-    # 썸머타임(DST) 대략적 적용 (3월~11월)
     is_summer = 3 <= now.month <= 11
     open_h, open_m = (22, 30) if is_summer else (23, 30)
     close_h = 5 if is_summer else 6
@@ -61,13 +59,12 @@ def get_market_status():
     open_mins = open_h * 60 + open_m
     close_mins = close_h * 60
     
-    wd = now.weekday() # 0:월 ~ 5:토, 6:일
+    wd = now.weekday() # 0:월 ~ 6:일
     
-    # 한국 시간 기준 주말(토요일 아침장 마감 이후 ~ 월요일 밤 개장 전) 판독
     is_closed = False
     if wd == 5 and curr_mins >= close_mins: # 토요일 아침 마감 이후
         is_closed = True
-    elif wd == 6: # 일요일 전체
+    elif wd == 6: # 일요일
         is_closed = True
     elif wd == 0 and curr_mins < open_mins: # 월요일 개장 전
         is_closed = True
@@ -75,7 +72,6 @@ def get_market_status():
     if is_closed:
         return now_str, f"💤 **현재 미국 증시는 [주말 휴장]입니다.** (다음 개장: 월요일 {open_h}:{open_m})"
     
-    # 평일 장 상태 판독
     if curr_mins < close_mins:
         return now_str, f"🔥 **미국 증시 [정규장 진행 중]** (마감: 오늘 {close_h:02d}:00)"
     elif curr_mins >= open_mins:
@@ -103,7 +99,6 @@ def generate_progress_bar(current, total, length=15):
     return f"[{'█' * filled}{'░' * empty}] {ratio * 100:.1f}%"
 
 def get_loading_embed():
-    # 🌟 로딩 화면에서도 항상 현재 시간과 장 상태를 브리핑!
     _, market_msg = get_market_status()
     return discord.Embed(
         title="⚡ 초고속 퀀트 AI 분석 중...", 
@@ -162,7 +157,7 @@ async def ask_ai_async(prompt, system_role):
                 return f"🚨 네트워크 통신 실패: {e}"
 
 # ------------------------------------------
-# 🖥️ UI 모달들 
+# 🖥️ UI 모달들
 # ------------------------------------------
 class TickerSearchModal(discord.ui.Modal, title='🔍 종목 검색'):
     company_name = discord.ui.TextInput(label='회사명', placeholder='예: 애플')
@@ -207,7 +202,7 @@ class OmegaProtocolModal(discord.ui.Modal, title='☢️ 전술핵: 오메가 �
         await interaction.edit_original_response(embed=discord.Embed(title=f"☢️ [오메가 프로토콜] {self.ticker.value.upper()}", description=ans, color=0xE74C3C))
 
 # ------------------------------------------
-# 💡 툴 입력창용 모달 
+# 💡 툴 입력창용 모달
 # ------------------------------------------
 class QuantToolModal(discord.ui.Modal):
     def __init__(self, tool_name: str, category: str):
@@ -228,7 +223,7 @@ class QuantToolModal(discord.ui.Modal):
         await interaction.edit_original_response(embed=discord.Embed(title=f"결과: {self.tool_name}", description=ans, color=0x95A5A6))
 
 # ------------------------------------------
-# 🗂️ 드롭다운 3종
+# 🗂️ 드롭다운 3종 (일반 10 / 특수 10 / 단타 20)
 # ------------------------------------------
 class GeneralSelect(discord.ui.Select):
     def __init__(self):
@@ -320,7 +315,6 @@ class DashboardView(discord.ui.View):
 # ------------------------------------------
 @bot.command(name="시작")
 async def start_cmd(ctx):
-    # 🌟 시작 화면에도 현재 KST 시간과 장 상태 추가!
     now_str, market_msg = get_market_status()
     embed = discord.Embed(
         title="PRO 퀀트 터미널 (V41.0 타임워치 장착)", 
