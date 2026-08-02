@@ -18,7 +18,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write("🔥 Quant Bot V28.0 (Rate Limit Bypass) is Alive!".encode('utf-8'))
+        self.wfile.write("🔥 Quant Bot V29.0 (No Delay Speed) is Alive!".encode('utf-8'))
     def log_message(self, format, *args): return 
 
 def run_web_server():
@@ -47,7 +47,7 @@ CACHE_TTL = 600
 
 @bot.event
 async def on_ready():
-    print(f'🔥 V28.0 구글 과부하 강제 돌파 패치 완료: {bot.user.name}')
+    print(f'🔥 V29.0 초고속 노빠꾸 엔진 패치 완료: {bot.user.name}')
     if not memory_cleanup_task.is_running(): memory_cleanup_task.start()
     if not autonomous_recon.is_running(): autonomous_recon.start()
 
@@ -65,11 +65,12 @@ def generate_progress_bar(current, total, length=15):
     return f"[{'█' * filled}{'░' * empty}] {ratio * 100:.1f}%"
 
 # ------------------------------------------
-# ⚡ [무적 회피망] AI 코어 엔진 (429 버그 완벽 수정)
+# ⚡ [딜레이 제로] 초고속 AI 코어 엔진
 # ------------------------------------------
 async def ask_ai_async(prompt, system_role):
     cache_key = f"{system_role}_{prompt}"
     curr = time.time()
+    # 이미 물어본 질문은 구글에 안 물어보고 메모리에서 0.01초 만에 즉시 답변!
     if cache_key in ai_response_cache and (curr - ai_response_cache[cache_key]['timestamp']) < CACHE_TTL:
         return ai_response_cache[cache_key]['text']
 
@@ -77,44 +78,35 @@ async def ask_ai_async(prompt, system_role):
 자본금 1~5만 원 단위의 소수점 투자(DCA)를 가장 효율적으로 리딩하며, 단타와 멘탈 방어 전술에 모두 능해.
 트레이더님은 경찰/특수부대를 꿈꾸며 체력(턱걸이, 푸시업, 유도)을 단련하듯 시드머니를 굴리고 있어.
 [역할 지정]: {system_role}
-[출력 원칙]: 마크다운 표 적극 활용, 수치화, 핵심만 간결하게 지시."""
+[출력 원칙]: 마크다운 표 적극 활용, 수치화, 딜레이 없이 팩트 폭격."""
 
     payload = {
         "contents": [{"parts": [{"text": f"{master_system_role}\n\n{prompt}"}]}],
         "generationConfig": {"temperature": 0.7}
     }
     
-    # 무료 한도가 가장 넉넉한 1.5-flash를 우선 배치
-    fallback_models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
+    # 🌟 1분에 2번 제한인 Pro 모델 삭제! 1분에 15번 연타 가능한 초고속 Flash 모델만 투입
+    fast_models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"]
     
     async with api_semaphore:
         async with aiohttp.ClientSession() as session:
-            for model_name in fallback_models:
+            for model_name in fast_models:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
                 
-                # 🌟 과부하(429) 발생 시 최대 3번(약 12초간) 물고 늘어지기!
-                for attempt in range(3): 
-                    try:
-                        async with session.post(url, json=payload, timeout=20.0) as res:
-                            if res.status == 200:
-                                data = await res.json()
-                                ans_text = data['candidates'][0]['content']['parts'][0]['text']
-                                ai_response_cache[cache_key] = {'text': ans_text, 'timestamp': time.time()}
-                                return ans_text
-                            elif res.status == 429: # Too Many Requests
-                                # 429가 뜨면 4초를 기다렸다가 재시도합니다. (1분 제한 타이머를 녹이기 위함)
-                                await asyncio.sleep(4) 
-                                continue 
-                            elif res.status == 404: 
-                                break # 404면 이 모델은 버리고 즉시 다음 모델로!
-                            else:
-                                break # 알 수 없는 에러도 다음 모델로
-                    except Exception:
-                        await asyncio.sleep(2)
-                        continue # 타임아웃 나면 2초 쉬고 다시 시도
+                try:
+                    # 🌟 딜레이 삭제: 에러 나면 안 쉬고 0.1초 만에 즉시 다음 모델로 찌르기!
+                    async with session.post(url, json=payload, timeout=10.0) as res:
+                        if res.status == 200:
+                            data = await res.json()
+                            ans_text = data['candidates'][0]['content']['parts'][0]['text']
+                            ai_response_cache[cache_key] = {'text': ans_text, 'timestamp': curr}
+                            return ans_text
+                        elif res.status in [429, 404]: 
+                            continue # 구글이 막으면 기다리지 않고 무조건 다음 모델로 패스!
+                except Exception:
+                    continue 
             
-            # 모든 시도를 다 했는데도 429에 걸려있다면, 유저에게 진짜 1분을 쉬라고 알려줍니다.
-            return "🚨 **[구글 AI 한도 초과]** 무료 API 제한(1분당 15회)이 초과되었습니다. 딱 1분만 기다리신 후 다시 버튼을 눌러주세요!"
+            return "🚨 **[구글 1분 15회 한도 초과]** 무료 API 허용량을 1분 만에 다 썼습니다! 딱 1분(60초)만 쉬었다가 다시 눌러주세요."
 
 async def fetch_stock_async(ticker, period="5d"):
     curr = time.time()
@@ -152,14 +144,14 @@ async def autonomous_recon():
         await ch.send(embed=discord.Embed(title="🚨 [긴급] 수급 이상 징후 포착", description=ans, color=0xE74C3C))
 
 # ------------------------------------------
-# 🖥️ 상단 UI: 종목 검색기 및 핵심 모달
+# 🖥️ 상단 UI: 모달 (입력창)
 # ------------------------------------------
 class TickerSearchModal(discord.ui.Modal, title='🔍 종목 코드(티커) 검색기'):
     company_name = discord.ui.TextInput(label='회사 이름 (예: 애플, 팔란티어)', placeholder='이름을 입력하세요')
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer()
         name = self.company_name.value
-        prompt = f"회사명 '{name}'의 미국 주식 공식 종목 코드(티커, Ticker)를 찾아줘. 그리고 이 회사가 돈을 어떻게 버는지 고등학생 눈높이로 딱 1줄로만 재밌게 요약해 줘."
+        prompt = f"회사명 '{name}'의 미국 주식 공식 종목 코드(티커)를 찾아줘. 그리고 1줄로 요약해."
         ans = await ask_ai_async(prompt, "종목 검색 봇")
         await interaction.followup.send(embed=discord.Embed(title=f"🔍 '{name}' 검색 결과", description=ans, color=0x2ECC71))
 
@@ -167,7 +159,7 @@ class DCAModal(discord.ui.Modal, title='⚖️ 소수점 타점 (DCA & 단타)')
     ticker = discord.ui.TextInput(label='매수할 주식 코드 (알파벳)', placeholder='예: TSLA')
     budget = discord.ui.TextInput(label='투입할 예산 (원)', placeholder='예: 15000')
     async def on_submit(self, interaction: discord.Interaction):
-        if exam_mode.get(interaction.user.id, False): return await interaction.response.send_message("🛡️ **[시험기간 모드]** 차트 접근 차단 중.", ephemeral=True)
+        if exam_mode.get(interaction.user.id, False): return await interaction.response.send_message("🛡️ **[시험기간]** 차트 접근 차단 중.", ephemeral=True)
         await interaction.response.defer()
         t, bdg = self.ticker.value.upper(), float(self.budget.value.replace(',', ''))
         prompt = f"종목: {t}, 예산: {bdg:,.0f}원. 시장 상태를 진단하고 오늘 얼마치 매수할지 지시해."
@@ -235,11 +227,11 @@ class QuantToolModal(discord.ui.Modal):
 class AdvancedSelect(discord.ui.Select):
     def __init__(self):
         options = [
-            discord.SelectOption(label="1. 🩺 재무 엑스레이 스캔", description="단순 매출이 아닌 진짜 뼈대를 분석"),
-            discord.SelectOption(label="2. 📡 세력 급증 레이더", description="돈이 무섭게 몰리는 비정상 수급 탐지"),
-            discord.SelectOption(label="3. 💸 타임머신 스노우볼", description="과거부터 샀다면 지금 얼마? (백테스트)"),
-            discord.SelectOption(label="4. 💥 숏커버링 폭발 예측", description="세력이 기권하고 폭등할 타점 판독"),
-            discord.SelectOption(label="5. 💣 상폐/지뢰밭 필터", description="상장폐지 위험 종목 걸러내기")
+            discord.SelectOption(label="1. 🩺 재무 엑스레이 스캔"),
+            discord.SelectOption(label="2. 📡 세력 급증 레이더"),
+            discord.SelectOption(label="3. 💸 타임머신 스노우볼"),
+            discord.SelectOption(label="4. 💥 숏커버링 폭발 예측"),
+            discord.SelectOption(label="5. 💣 상폐/지뢰밭 필터")
         ]
         super().__init__(placeholder="👑 추가 고급 퀀트 툴 모음 (상세 분석)", min_values=1, max_values=1, options=options)
         
@@ -253,18 +245,22 @@ class AdvancedSelect(discord.ui.Select):
 class DashboardView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
+        # Row 0
         self.add_item(discord.ui.Button(label="⚖️ 매수 타점", style=discord.ButtonStyle.success, custom_id="dca", row=0))
         self.add_item(discord.ui.Button(label="📰 감성 분석", style=discord.ButtonStyle.secondary, custom_id="sen", row=0))
         self.add_item(discord.ui.Button(label="🧘 패닉 룸", style=discord.ButtonStyle.danger, custom_id="pan", row=0))
         
+        # Row 1
         self.add_item(discord.ui.Button(label="🔍 종목 검색기", style=discord.ButtonStyle.primary, custom_id="search", row=1))
         self.add_item(FinancialFilterButton())
         self.add_item(discord.ui.Button(label="📝 단련 일지", style=discord.ButtonStyle.secondary, custom_id="hab", row=1))
         
+        # Row 2
         self.add_item(discord.ui.Button(label="🎯 목표 설정", style=discord.ButtonStyle.success, custom_id="goal", row=2))
         self.add_item(discord.ui.Button(label="🛡️ 시험기간 모드", style=discord.ButtonStyle.primary, custom_id="exam", row=2))
         self.add_item(discord.ui.Button(label="📡 상황실 등록", style=discord.ButtonStyle.danger, custom_id="alert", row=2))
 
+        # Row 3
         self.add_item(AdvancedSelect()) 
 
     async def interaction_check(self, i: discord.Interaction) -> bool:
@@ -295,8 +291,8 @@ class DashboardView(discord.ui.View):
 @bot.command(name="시작")
 async def start_cmd(ctx):
     embed = discord.Embed(
-        title="PRO 퀀트 터미널 (V28.0 한도 초과 방어형)", 
-        description="🔥 **[과부하 돌파 알고리즘 가동 중!]**\n구글 서버 횟수 제한에 걸려도 봇이 끈질기게 재시도합니다.\n\n⚠️ 너무 빠르게 여러 버튼을 누르면 구글이 차단할 수 있으니 10초 간격으로 눌러주세요!", 
+        title="PRO 퀀트 터미널 (V29.0 스피드 엔진)", 
+        description="🔥 **[딜레이 제로 패치 완료!]**\n답답한 대기 시간을 삭제하고 1분에 15번 응답 가능한 초고속 봇으로 개조되었습니다.\n❓ **`!도움말`**을 치면 전체 사용법이 나옵니다.", 
         color=0x0050FF
     )
     await ctx.send(embed=embed, view=DashboardView())
